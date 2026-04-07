@@ -15,20 +15,23 @@ const SCORE_FIELDS: Record<string, keyof Prisma.DatasetWhereInput> = {
 }
 
 const SORT_MAP: Record<string, Prisma.DatasetOrderByWithRelationInput> = {
-  overallScore:         { overallScore:         'asc'  },
-  overallScore_desc:    { overallScore:         'desc' },
-  completenessScore:    { completenessScore:    'asc'  },
-  completenessScore_desc: { completenessScore:  'desc' },
-  timelinessScore:      { timelinessScore:      'asc'  },
-  timelinessScore_desc: { timelinessScore:      'desc' },
-  accessibilityScore:   { accessibilityScore:   'asc'  },
-  accessibilityScore_desc: { accessibilityScore: 'desc' },
-  machineReadableScore: { machineReadableScore: 'asc'  },
+  overallScore:              { overallScore:         'asc'  },
+  overallScore_desc:         { overallScore:         'desc' },
+  completenessScore:         { completenessScore:    'asc'  },
+  completenessScore_desc:    { completenessScore:    'desc' },
+  timelinessScore:           { timelinessScore:      'asc'  },
+  timelinessScore_desc:      { timelinessScore:      'desc' },
+  accessibilityScore:        { accessibilityScore:   'asc'  },
+  accessibilityScore_desc:   { accessibilityScore:   'desc' },
+  machineReadableScore:      { machineReadableScore: 'asc'  },
   machineReadableScore_desc: { machineReadableScore: 'desc' },
-  validityScore:        { validityScore:        'asc'  },
-  validityScore_desc:   { validityScore:        'desc' },
-  lastScanAt:           { lastScanAt:           'desc' },
-  title:                { title:                'asc'  },
+  validityScore:             { validityScore:        'asc'  },
+  validityScore_desc:        { validityScore:        'desc' },
+  machineReadableStatus:     { machineReadableStatus: 'asc'  },
+  machineReadableStatus_desc:{ machineReadableStatus: 'desc' },
+  lastScanAt:                { lastScanAt:           'desc' },
+  title:                     { title:                'asc'  },
+  title_desc:                { title:                'desc' },
 }
 
 async function buildScopeFilter(payload: AccessTokenPayload): Promise<Prisma.DatasetWhereInput> {
@@ -67,10 +70,12 @@ export async function GET(req: NextRequest) {
   const pageSize  = 50
   const search    = searchParams.get('search') || ''
   const grade     = searchParams.get('grade') || ''
-  const orgId     = searchParams.get('orgId') || ''
-  const scoreType = searchParams.get('scoreType') || ''
-  const minScore  = searchParams.get('minScore') || ''
-  const sortKey   = searchParams.get('sort') || 'overallScore_asc'
+  const orgId      = searchParams.get('orgId') || ''
+  const scoreType  = searchParams.get('scoreType') || ''
+  const minScore   = searchParams.get('minScore') || ''
+  const structured = searchParams.get('structured') || ''   // 'yes' | 'no'
+  const mrStatus   = searchParams.get('mrStatus') || ''     // fully | partially | not | unknown
+  const sortKey    = searchParams.get('sort') || 'overallScore_asc'
 
   const scopeFilter = await buildScopeFilter(payload)
 
@@ -85,6 +90,19 @@ export async function GET(req: NextRequest) {
   }
   if (grade) where.qualityGrade = grade
   if (orgId) where.organizationId = orgId
+
+  // Structured filter: yes → fully/partially; no → not_machine_readable
+  if (structured === 'yes') {
+    where.machineReadableStatus = { in: ['fully_machine_readable', 'partially_machine_readable'] }
+  } else if (structured === 'no') {
+    where.machineReadableStatus = 'not_machine_readable'
+  }
+
+  // Machine readable status exact filter (overrides structured filter if set)
+  // values: fully_machine_readable | partially_machine_readable | not_machine_readable | unknown
+  if (mrStatus) {
+    where.machineReadableStatus = mrStatus
+  }
 
   if (scoreType && minScore !== '' && SCORE_FIELDS[scoreType]) {
     const field = SCORE_FIELDS[scoreType]

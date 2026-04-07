@@ -50,6 +50,18 @@ export default function JobsPage() {
     return () => clearInterval(iv)
   }, [load])
 
+  async function forceJob(id: string, action: 'complete' | 'cancel') {
+    setMsg('')
+    const r = await apiFetch(`/api/jobs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    const d = await r.json()
+    setMsg(r.ok ? `Job ${action === 'complete' ? 'ปิดเสร็จสิ้น' : 'ยกเลิก'}แล้ว` : (d.error || 'เกิดข้อผิดพลาด'))
+    load()
+  }
+
   async function triggerSync() {
     setMsg('')
     const r = await apiFetch('/api/sync', { method: 'POST' })
@@ -113,6 +125,7 @@ export default function JobsPage() {
               <th className="px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">ความคืบหน้า</th>
               <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell">ผู้ดำเนินการ</th>
               <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell">เวลา</th>
+              <th className="px-4 py-3 font-medium text-gray-600 w-24"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -177,6 +190,22 @@ export default function JobsPage() {
                     <div>{new Date(j.createdAt).toLocaleString('th-TH')}</div>
                     {duration !== null && <div className="text-gray-300">ใช้เวลา {duration}s</div>}
                     {j.errorMsg && <div className="text-red-400 truncate max-w-40" title={j.errorMsg}>{j.errorMsg}</div>}
+                  </td>
+                  <td className="px-3 py-3">
+                    {(j.status === 'running' || j.status === 'pending') && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => forceJob(j.id, 'complete')}
+                          className="text-xs px-2 py-1 rounded border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                          title="บันทึกเป็นเสร็จสิ้น (force complete)"
+                        >✓ ปิด</button>
+                        <button
+                          onClick={() => forceJob(j.id, 'cancel')}
+                          className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                          title="ยกเลิก job นี้"
+                        >✕ ยกเลิก</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )

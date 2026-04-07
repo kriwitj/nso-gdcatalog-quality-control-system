@@ -68,7 +68,12 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
     return NextResponse.json({ error: 'ไม่พบชุดข้อมูลในขอบเขตของคุณ' }, { status: 404 })
   }
 
-  const totalResources = datasets.reduce((s: number, d: { resources: unknown[] }) => s + d.resources.length, 0)
+  // นับเฉพาะ resource ที่มี URL จริง ๆ (ที่จะ enqueue) เพื่อให้ totalItems ตรงกับ done_items
+  const scannable = datasets.map(d => ({
+    dataset: d,
+    resources: d.resources.filter((r: { url: string | null }) => r.url),
+  }))
+  const totalResources = scannable.reduce((s, d) => s + d.resources.length, 0)
 
   const job = await prisma.scanJob.create({
     data: {
@@ -84,18 +89,15 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
   await prisma.dataset.updateMany({ where, data: { lastScanStatus: 'running' } })
 
   let enqueued = 0
-  for (const dataset of datasets) {
-    const resourceIds = dataset.resources
-      .filter((r: { url: string | null }) => r.url)
-      .map((r: { id: string }) => r.id)
+  for (const { dataset, resources } of scannable) {
+    const resourceIds = resources.map((r: { id: string }) => r.id)
 
-    for (const resource of dataset.resources) {
-      if (!resource.url) continue
+    for (const resource of resources) {
       await enqueueResourceCheck({
         jobId:                job.id,
         resourceId:           resource.id,
         resourceCkanId:       resource.ckanId,
-        resourceUrl:          resource.url,
+        resourceUrl:          resource.url as string,
         resourceFormat:       resource.format,
         packageId:            dataset.id,
         datasetCkanId:        dataset.ckanId,

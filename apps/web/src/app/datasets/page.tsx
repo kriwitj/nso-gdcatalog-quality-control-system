@@ -18,11 +18,11 @@ interface Dataset {
   completenessScore:    number | null
   timelinessScore:      number | null
   accessibilityScore:   number | null
-  machineReadableScore: number | null
-  validityScore:        number | null
+  machineReadableScore:  number | null
+  validityScore:         number | null
+  machineReadableStatus: string | null
   lastScanAt:    string | null
   lastScanStatus: string | null
-  ckanSource: { id: string; name: string; url: string } | null
 }
 
 interface PageData {
@@ -35,7 +35,7 @@ interface PageData {
 type SortField =
   | 'overallScore' | 'completenessScore' | 'timelinessScore'
   | 'accessibilityScore' | 'machineReadableScore' | 'validityScore'
-  | 'lastScanAt' | 'title'
+  | 'machineReadableStatus' | 'lastScanAt' | 'title'
 
 const SCORE_TYPES = [
   { value: '',               label: 'ทุกประเภท'    },
@@ -55,6 +55,24 @@ function ScoreCell({ value }: { value: number | null }) {
   }
   const color = value >= 80 ? 'text-green-600' : value >= 60 ? 'text-yellow-600' : 'text-red-500'
   return <span className={`text-xs font-medium tabular-nums ${color}`}>{Math.round(value)}</span>
+}
+
+// ─── Structured / Machine Readable badge ─────────────────────────
+
+function StructuredBadge({ status }: { status: string | null }) {
+  if (!status || status === 'unknown') return <span className="text-xs text-gray-300">—</span>
+  if (status === 'fully_machine_readable' || status === 'partially_machine_readable')
+    return <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs">Structured</span>
+  return <span className="badge text-red-600 bg-red-50 border-red-200 text-xs">Unstructured</span>
+}
+
+function MRBadge({ status }: { status: string | null }) {
+  if (!status || status === 'unknown') return <span className="text-xs text-gray-300">—</span>
+  if (status === 'fully_machine_readable')
+    return <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs">ทั้งหมด</span>
+  if (status === 'partially_machine_readable')
+    return <span className="badge text-amber-700 bg-amber-50 border-amber-200 text-xs">บางส่วน</span>
+  return <span className="badge text-red-600 bg-red-50 border-red-200 text-xs">ไม่ได้</span>
 }
 
 // ─── Sortable column header ────────────────────────────────────────
@@ -90,33 +108,39 @@ function SortTh({
 export default function DatasetsPage() {
   const [pd,        setPd]       = useState<PageData | null>(null)
   const [orgs,      setOrgs]     = useState<OrgItem[]>([])
-  const [page,      setPage]     = useState(1)
-  const [search,    setSearch]   = useState('')
-  const [grade,     setGrade]    = useState('')
-  const [orgId,     setOrgId]    = useState('')
-  const [scoreType, setScoreType]= useState('')
-  const [minScore,  setMinScore] = useState('')
-  const [sort,      setSort]     = useState<string>('overallScore_asc')
+  const [page,       setPage]      = useState(1)
+  const [search,     setSearch]    = useState('')
+  const [grade,      setGrade]     = useState('')
+  const [orgId,      setOrgId]     = useState('')
+  const [scoreType,  setScoreType] = useState('')
+  const [minScore,   setMinScore]  = useState('')
+  const [structured, setStructured]= useState('')
+  const [mrStatus,   setMrStatus]  = useState('')
+  const [sort,       setSort]      = useState<string>('overallScore_asc')
 
   const loadData = useCallback(async (overrides: Record<string, unknown> = {}) => {
-    const p  = (overrides.page      ?? page)      as number
-    const s  = (overrides.search    ?? search)    as string
-    const g  = (overrides.grade     ?? grade)     as string
-    const o  = (overrides.orgId     ?? orgId)     as string
-    const st = (overrides.scoreType ?? scoreType) as string
-    const ms = (overrides.minScore  ?? minScore)  as string
-    const so = (overrides.sort      ?? sort)      as string
+    const p   = (overrides.page       ?? page)       as number
+    const s   = (overrides.search     ?? search)     as string
+    const g   = (overrides.grade      ?? grade)      as string
+    const o   = (overrides.orgId      ?? orgId)      as string
+    const st  = (overrides.scoreType  ?? scoreType)  as string
+    const ms  = (overrides.minScore   ?? minScore)   as string
+    const str = (overrides.structured ?? structured) as string
+    const mr  = (overrides.mrStatus   ?? mrStatus)   as string
+    const so  = (overrides.sort       ?? sort)       as string
 
     const params = new URLSearchParams({ page: String(p), sort: so })
-    if (s)  params.set('search',    s)
-    if (g)  params.set('grade',     g)
-    if (o)  params.set('orgId',     o)
-    if (st) params.set('scoreType', st)
-    if (ms) params.set('minScore',  ms)
+    if (s)   params.set('search',     s)
+    if (g)   params.set('grade',      g)
+    if (o)   params.set('orgId',      o)
+    if (st)  params.set('scoreType',  st)
+    if (ms)  params.set('minScore',   ms)
+    if (str) params.set('structured', str)
+    if (mr)  params.set('mrStatus',   mr)
 
     const r = await apiFetch(`/api/datasets?${params}`)
     if (r.ok) setPd(await r.json())
-  }, [page, search, grade, orgId, scoreType, minScore, sort])
+  }, [page, search, grade, orgId, scoreType, minScore, structured, mrStatus, sort])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -135,11 +159,13 @@ export default function DatasetsPage() {
 
   function setFilter(key: string, value: string) {
     const updates: Record<string, unknown> = { [key]: value, page: 1 }
-    if (key === 'search')    setSearch(value)
-    if (key === 'grade')     setGrade(value)
-    if (key === 'orgId')     setOrgId(value)
-    if (key === 'scoreType') setScoreType(value)
-    if (key === 'minScore')  setMinScore(value)
+    if (key === 'search')     setSearch(value)
+    if (key === 'grade')      setGrade(value)
+    if (key === 'orgId')      setOrgId(value)
+    if (key === 'scoreType')  setScoreType(value)
+    if (key === 'minScore')   setMinScore(value)
+    if (key === 'structured') { setStructured(value); if (value) setMrStatus('') }
+    if (key === 'mrStatus')   { setMrStatus(value);   if (value) setStructured('') }
     setPage(1)
     loadData(updates)
   }
@@ -191,6 +217,30 @@ export default function DatasetsPage() {
           ))}
         </select>
 
+        {/* Structured filter */}
+        <select
+          className="input-field w-36"
+          value={structured}
+          onChange={e => setFilter('structured', e.target.value)}
+        >
+          <option value="">ทุกประเภท</option>
+          <option value="yes">Structured</option>
+          <option value="no">Unstructured</option>
+        </select>
+
+        {/* Machine Readable filter */}
+        <select
+          className="input-field w-44"
+          value={mrStatus}
+          onChange={e => setFilter('mrStatus', e.target.value)}
+        >
+          <option value="">ทุก Machine Read.</option>
+          <option value="fully_machine_readable">อ่านได้ทั้งหมด</option>
+          <option value="partially_machine_readable">อ่านได้บางส่วน</option>
+          <option value="not_machine_readable">อ่านไม่ได้</option>
+          <option value="unknown">ไม่ทราบ</option>
+        </select>
+
         {/* Score type filter */}
         <select
           className="input-field w-44"
@@ -224,7 +274,8 @@ export default function DatasetsPage() {
             <tr className="bg-gray-50 border-b border-gray-200 text-xs">
               <th className="text-left px-4 py-3 font-medium text-gray-600 min-w-48">ชุดข้อมูล</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell min-w-32">หน่วยงาน</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell min-w-28">แหล่งข้อมูล</th>
+              <SortTh field="machineReadableStatus" label="Structured"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
+              <SortTh field="machineReadableStatus" label="Machine Read." sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
               <SortTh field="overallScore"         label="เกรด/รวม"  sort={sort} onSort={handleSort} className="text-center" />
               <SortTh field="completenessScore"    label="ครบถ้วน"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
               <SortTh field="timelinessScore"      label="ทันสมัย"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
@@ -236,10 +287,10 @@ export default function DatasetsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {!pd && (
-              <tr><td colSpan={10} className="text-center py-12 text-gray-400">กำลังโหลด...</td></tr>
+              <tr><td colSpan={11} className="text-center py-12 text-gray-400">กำลังโหลด...</td></tr>
             )}
             {pd?.data.length === 0 && (
-              <tr><td colSpan={10} className="text-center py-12 text-gray-400">ไม่พบชุดข้อมูล</td></tr>
+              <tr><td colSpan={11} className="text-center py-12 text-gray-400">ไม่พบชุดข้อมูล</td></tr>
             )}
             {pd?.data.map(d => (
               <tr key={d.id} className="hover:bg-gray-50 transition-colors">
@@ -254,10 +305,11 @@ export default function DatasetsPage() {
                 <td className="px-4 py-3 text-gray-500 hidden md:table-cell text-xs truncate max-w-36">
                   {d.organization?.title || d.organization?.name || '—'}
                 </td>
-                <td className="px-4 py-3 hidden lg:table-cell text-xs truncate max-w-28">
-                  {d.ckanSource
-                    ? <a href={d.ckanSource.url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{d.ckanSource.name || new URL(d.ckanSource.url).hostname}</a>
-                    : <span className="text-gray-300">—</span>}
+                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                  <StructuredBadge status={d.machineReadableStatus} />
+                </td>
+                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                  <MRBadge status={d.machineReadableStatus} />
                 </td>
                 {/* Grade + overall */}
                 <td className="px-3 py-3 text-center">
