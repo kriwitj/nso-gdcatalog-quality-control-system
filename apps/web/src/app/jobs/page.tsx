@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { apiFetch } from '@/lib/apiClient'
+import ConfirmDialog from '@/app/_components/ConfirmDialog'
 
 interface Job {
   id: string; type: string; status: string
@@ -33,6 +34,8 @@ export default function JobsPage() {
   const [queue,   setQueue]   = useState<QueueLengths | null>(null)
   const [loading, setLoading] = useState(true)
   const [msg,     setMsg]     = useState('')
+  const [confirmSync, setConfirmSync] = useState(false)
+  const [confirmScan, setConfirmScan] = useState(false)
 
   const load = useCallback(async () => {
     const [jRes, qRes] = await Promise.all([
@@ -63,7 +66,7 @@ export default function JobsPage() {
   }
 
   async function triggerSync() {
-    setMsg('')
+    setConfirmSync(false); setMsg('')
     const r = await apiFetch('/api/sync', { method: 'POST' })
     const d = await r.json()
     setMsg(r.ok ? (d.message || 'เริ่มซิงค์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
@@ -71,7 +74,7 @@ export default function JobsPage() {
   }
 
   async function triggerScan() {
-    setMsg('')
+    setConfirmScan(false); setMsg('')
     const r = await apiFetch('/api/scan', { method: 'POST' })
     const d = await r.json()
     setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
@@ -102,10 +105,22 @@ export default function JobsPage() {
 
       {/* Actions */}
       <div className="flex gap-3 mb-4">
-        <button onClick={triggerSync} className="btn-secondary">⟳ ซิงค์ CKAN</button>
-        <button onClick={triggerScan} className="btn-primary">▶ ตรวจสอบทั้งหมด</button>
-        <button onClick={load}        className="btn-secondary">🔄 รีเฟรช</button>
+        <button onClick={() => setConfirmSync(true)} className="btn-secondary">⟳ ซิงค์ CKAN</button>
+        <button onClick={() => setConfirmScan(true)} className="btn-primary">▶ ตรวจสอบทั้งหมด</button>
+        <button onClick={load}                       className="btn-secondary">🔄 รีเฟรช</button>
       </div>
+      <ConfirmDialog
+        open={confirmSync} title="ยืนยันการซิงค์"
+        message="ซิงค์ข้อมูลชุดข้อมูลจาก CKAN ใช่หรือไม่?"
+        confirmLabel="⟳ เริ่มซิงค์"
+        onConfirm={triggerSync} onCancel={() => setConfirmSync(false)}
+      />
+      <ConfirmDialog
+        open={confirmScan} title="ยืนยันการตรวจสอบ"
+        message="ตรวจสอบคุณภาพทรัพยากรทั้งหมดในขอบเขตของคุณ ใช่หรือไม่?"
+        confirmLabel="▶ เริ่มตรวจสอบ"
+        onConfirm={triggerScan} onCancel={() => setConfirmScan(false)}
+      />
       {msg && (
         <div className={`mb-5 p-3 rounded-lg text-sm border ${
           msg.includes('ผิดพลาด') || msg.includes('อยู่แล้ว') || msg.includes('สิทธิ์')

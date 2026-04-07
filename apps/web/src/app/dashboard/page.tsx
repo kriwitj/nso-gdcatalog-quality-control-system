@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { scoreToGrade, gradeColor, fmt } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
 import Link from 'next/link'
+import ConfirmDialog from '@/app/_components/ConfirmDialog'
 
 interface Stats {
   totalDatasets: number
@@ -34,9 +35,11 @@ const MR_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
-  const [scanning, setScanning] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [syncing,      setSyncing]      = useState(false)
+  const [scanning,     setScanning]     = useState(false)
+  const [msg,          setMsg]          = useState('')
+  const [confirmSync,  setConfirmSync]  = useState(false)
+  const [confirmScan,  setConfirmScan]  = useState(false)
 
   useEffect(() => {
     apiFetch('/api/stats').then(async r => {
@@ -47,6 +50,7 @@ export default function DashboardPage() {
   }, [])
 
   async function triggerSync() {
+    setConfirmSync(false)
     setSyncing(true); setMsg('')
     const r = await apiFetch('/api/sync', { method: 'POST' })
     const d = await r.json()
@@ -55,6 +59,7 @@ export default function DashboardPage() {
   }
 
   async function triggerScan() {
+    setConfirmScan(false)
     setScanning(true); setMsg('')
     const r = await apiFetch('/api/scan', { method: 'POST' })
     const d = await r.json()
@@ -82,14 +87,26 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button onClick={triggerSync} disabled={syncing} className="btn-secondary">
+          <button onClick={() => setConfirmSync(true)} disabled={syncing} className="btn-secondary">
             {syncing ? '⏳ กำลังซิงค์...' : '⟳ ซิงค์จาก CKAN'}
           </button>
-          <button onClick={triggerScan} disabled={scanning} className="btn-primary">
+          <button onClick={() => setConfirmScan(true)} disabled={scanning} className="btn-primary">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบคุณภาพ'}
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmSync} title="ยืนยันการซิงค์"
+        message="ซิงค์ข้อมูลชุดข้อมูลจาก CKAN ใช่หรือไม่?"
+        confirmLabel="⟳ เริ่มซิงค์"
+        onConfirm={triggerSync} onCancel={() => setConfirmSync(false)}
+      />
+      <ConfirmDialog
+        open={confirmScan} title="ยืนยันการตรวจสอบ"
+        message="ตรวจสอบคุณภาพทรัพยากรทั้งหมดในขอบเขตของคุณ ใช่หรือไม่?"
+        confirmLabel="▶ เริ่มตรวจสอบ"
+        onConfirm={triggerScan} onCancel={() => setConfirmScan(false)}
+      />
       {msg && (
         <div className={`mb-6 p-3 border rounded-lg text-sm ${
           msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')

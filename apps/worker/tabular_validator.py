@@ -21,6 +21,73 @@ def _detect_encoding(path: str) -> str:
         return "utf-8"
 
 
+def _is_numeric_fragment(s: str) -> bool:
+    """ตรวจว่า string นี้เป็นส่วนของตัวเลขที่ถูกตัดด้วย comma ที่ไม่ได้ quote
+    เช่น '272.25' หรือ '200' หรือ '663,200' (ยังมี comma อยู่)"""
+    s = s.strip()
+    if not s:
+        return False
+    return all(c.isdigit() or c in '.,% -' for c in s) and any(c.isdigit() for c in s)
+
+
+def _manual_csv_check(path: str, fmt: str, encoding: str) -> dict:
+    """ตรวจ extra-cell / blank-row ด้วย Python csv module (ไม่พึ่ง frictionless)
+    แยกแยะ extra-value จริง vs ตัวเลขที่มี comma ไม่ใส่ quote"""
+    result = {"extra-value": 0, "blank-row": 0, "missing-value": 0, "format-error": 0, "error": ""}
+    if fmt not in ("csv", "tsv"):
+        return result
+    try:
+        import csv as _csv
+        sep = "\t" if fmt == "tsv" else ","
+        # ลอง utf-8-sig ก่อนเพื่อตัด BOM ออก
+        enc_try = "utf-8-sig" if encoding.lower().replace("-","") in ("utf8","utf8sig") else encoding
+        try:
+            with open(path, encoding=enc_try, errors="replace", newline="") as f:
+                rows = list(_csv.reader(f, delimiter=sep))
+        except Exception:
+            with open(path, encoding="utf-8", errors="replace", newline="") as f:
+                rows = list(_csv.reader(f, delimiter=sep))
+        if not rows:
+            return result
+        header_count = len(rows[0])
+        extra_rows, blank_rows, missing_rows, unquoted_rows = [], [], [], []
+        for i, row in enumerate(rows[1:], start=1):
+            cell_count = len(row)
+            if cell_count == 0 or all(c.strip() == "" for c in row):
+                blank_rows.append(i)
+            elif cell_count > header_count:
+                # ตรวจว่า extra cells (ส่วนที่เกิน) เป็น numeric fragment หรือไม่
+                # ถ้าใช่ → น่าจะเป็นตัวเลขที่มี comma ไม่ได้ quote
+                extra_cells = row[header_count:]
+                if all(_is_numeric_fragment(c) for c in extra_cells):
+                    unquoted_rows.append(i)
+                else:
+                    extra_rows.append(i)
+            elif cell_count < header_count:
+                missing_rows.append(i)
+        result["extra-value"]   = len(extra_rows)
+        result["blank-row"]     = len(blank_rows)
+        result["missing-value"] = len(missing_rows)
+        result["format-error"]  = len(unquoted_rows)
+        msgs = []
+        if extra_rows:
+            msgs.append(f"Extra values found in rows: {extra_rows[:20]}")
+        if unquoted_rows:
+            msgs.append(f"ตัวเลขที่มี comma ไม่ใส่ quote (unquoted number) ใน rows: {unquoted_rows[:20]}")
+        if blank_rows:
+            msgs.append(f"Blank rows: {blank_rows[:20]}")
+        if missing_rows:
+            msgs.append(f"Missing values in rows: {missing_rows[:20]}")
+        result["error"] = "; ".join(msgs)
+        log.debug(
+            f"manual_csv_check: extra={len(extra_rows)} unquoted={len(unquoted_rows)} "
+            f"blank={len(blank_rows)} missing={len(missing_rows)}"
+        )
+    except Exception as e:
+        log.debug(f"manual_csv_check failed: {e}")
+    return result
+
+
 def _pandas_info(path: str, fmt: str, encoding: str) -> tuple[Optional[int], Optional[int]]:
     try:
         import pandas as pd
@@ -127,14 +194,64 @@ def validate_tabular(file_path: str, fmt: str) -> dict:
         errors_by_type: dict[str, int] = {}
         error_messages: list[str] = []
 
-        if not report.valid:
-            for err in report.flatten(["type", "message"]):
-                t, m = err[0], err[1]
-                if "is not safe" in m:
+        # ── รวบรวม errors (frictionless v4/v5) ──────────────────────
+        # frictionless v5 จัด extra-cell, extra-label เป็น "warning" ไม่ใช่ error
+        # → ต้อง enumerate ทั้ง errors และ warnings เพื่อให้ตรงกับมาตรฐานกลาง
+
+        def _collect_issues(items):
+            for err in (items or []):
+                try:
+                    t = err[0] if isinstance(err, (list, tuple)) else getattr(err, "type", "")
+                    m = err[1] if isinstance(err, (list, tuple)) else getattr(err, "message", "")
+                except Exception:
+                    continue
+                if "is not safe" in str(m):
                     continue
                 errors_by_type[t] = errors_by_type.get(t, 0) + 1
-                if len(error_messages) < 20:
-                    error_messages.append(m)
+                if len(error_messages) < 30:
+                    error_messages.append(str(m))
+
+        # errors
+        try:
+            _collect_issues(report.flatten(["type", "message"]))
+        except Exception:
+            pass
+
+        # warnings — frictionless v5 เก็บใน task.warnings เป็น string list
+        # (extra-cell, missing-cell ฯลฯ ที่ v5 ถือว่า "warning" ไม่ fail validation)
+        try:
+            for task in (report.tasks or []):
+                for w in getattr(task, "warnings", []):
+                    w_str = str(w)
+                    if "is not safe" in w_str:
+                        continue
+                    # บาง v5 ส่ง Error object; บาง v5 ส่ง string ล้วน
+                    t = getattr(w, "type", None)
+                    m = getattr(w, "message", None)
+                    if not t:
+                        # parse type จาก string message
+                        w_lower = w_str.lower()
+                        if "extra cell" in w_lower:
+                            t = "extra-cell"
+                        elif "missing cell" in w_lower:
+                            t = "missing-cell"
+                        elif "blank row" in w_lower:
+                            t = "blank-row"
+                        elif "blank label" in w_lower or "blank header" in w_lower:
+                            t = "blank-label"
+                        elif "duplicate label" in w_lower or "duplicate header" in w_lower:
+                            t = "duplicate-label"
+                        elif "type error" in w_lower:
+                            t = "type-error"
+                        elif "encoding" in w_lower:
+                            t = "encoding-error"
+                        else:
+                            continue  # ไม่รู้จักประเภท ข้ามไป
+                    errors_by_type[t] = errors_by_type.get(t, 0) + 1
+                    if len(error_messages) < 30:
+                        error_messages.append(m or w_str)
+        except Exception:
+            pass
 
         # map error types → our keys
         for fr_type, our_key in TYPE_MAP.items():
@@ -142,19 +259,12 @@ def validate_tabular(file_path: str, fmt: str) -> dict:
             if cnt:
                 result[our_key] = result.get(our_key, 0) + cnt
 
-        result["valid"]  = bool(report.valid)
-        result["error"]  = ",".join(error_messages) if error_messages else ""
-
-        # ถ้า invalid แต่จับ error ไม่ได้เลย — แสดง raw errors
-        if not report.valid and not error_messages:
-            try:
-                all_errs = report.flatten(["type", "message"])
-                if all_errs:
-                    result["error"] = "; ".join(f"{e[0]}: {e[1]}" for e in all_errs[:5])
-            except Exception:
-                pass
-
         result["error_count"] = sum(result[k] for k in ERROR_KEYS)
+
+        # valid = report.valid AND ไม่มี error ใด ๆ ที่นับได้
+        # (ครอบคลุมกรณี frictionless v5 ที่ extra-cell เป็น warning → report.valid=True)
+        result["valid"]  = bool(report.valid) and result["error_count"] == 0
+        result["error"]  = "; ".join(error_messages) if error_messages else ""
 
         # row count จาก frictionless ถ้า pandas ไม่ได้
         if result["row_count"] is None:
@@ -164,17 +274,26 @@ def validate_tabular(file_path: str, fmt: str) -> dict:
             except Exception:
                 pass
 
+        # ── manual fallback: ตรวจ extra-cell/blank-row ด้วย Python csv ──
+        # frictionless v5 อาจ miss extra-cell (เก็บเป็น warning ที่ไม่ถูก map)
+        if fmt in ("csv", "tsv"):
+            manual = _manual_csv_check(file_path, fmt, enc)
+            for key in ("extra-value", "blank-row", "missing-value", "format-error"):
+                if manual[key] > result[key]:
+                    result[key] = manual[key]
+            result["error_count"] = sum(result[k] for k in ERROR_KEYS)
+            result["valid"] = result["valid"] and result["error_count"] == 0
+            if manual["error"] and not result["error"]:
+                result["error"] = manual["error"]
+
     except Exception as e:
         log.warning(f"Frictionless error: {e}")
-        if row_count is not None:
-            result["valid"]       = True
-            result["error"]       = ""
-            result["error_count"] = 0
-        else:
-            result["source-error"] = 1
-            result["error"]        = str(e)[:500]
-            result["valid"]        = False
-            result["error_count"]  = 1
+        # ไม่สามารถ validate ได้ — ทิ้ง valid=None (is_valid จะเป็น null ใน DB)
+        # ไม่ set valid=True แม้ pandas อ่านได้ เพราะยังไม่ได้ตรวจจริง
+        result["valid"]       = None
+        result["source-error"] = 1
+        result["error"]        = f"Validation failed: {str(e)[:300]}"
+        result["error_count"]  = 1
     finally:
         os.chdir(orig_cwd)
         if local_copy and os.path.exists(local_copy):

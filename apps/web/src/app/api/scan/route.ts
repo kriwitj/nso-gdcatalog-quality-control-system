@@ -6,10 +6,22 @@ import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
+type ResourceRow = {
+  id: string; ckanId: string; url: string | null
+  format: string | null; metadataModified: Date | null; packageId: string
+}
+
+type DatasetRow = {
+  id: string; ckanId: string; updateFrequency: string | null; ckanSourceId: string | null
+  resources: ResourceRow[]
+}
+
+
 // POST /api/scan — ต้อง login ระดับ admin หรือ editor
-// Non-admin: ตรวจสอบได้เฉพาะ datasets จาก CkanSource ของ ศูนย์/กอง ตัวเอง
+// รองรับ body: { datasetId? } | { resourceId? }
+// Non-admin: จำกัด scope ตาม divisionId ของ CkanSource
 export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
-  let body: { datasetId?: string } = {}
+  let body: { datasetId?: string; resourceId?: string } = {}
   try { body = await req.json() } catch {}
 
   // Non-admin: จำกัด scope ตาม divisionId
@@ -32,11 +44,58 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
     scopeSourceIds = divSources.map((s: { id: string }) => s.id)
   }
 
-  // ป้องกัน scan ซ้อนกัน — ถ้ามี full scan กำลัง running อยู่ ให้ reject
-  // (single-dataset scan อนุญาตให้รันซ้อนกันได้)
+  // ── Single-resource scan ────────────────────────────────────────
+  if (body.resourceId) {
+    const resource = await prisma.resource.findUnique({
+      where:   { id: body.resourceId },
+      select: {
+        id: true, ckanId: true, url: true,
+        format: true, metadataModified: true, packageId: true,
+        dataset: { select: { id: true, ckanId: true, updateFrequency: true, ckanSourceId: true } },
+      },
+    })
+    if (!resource || !resource.url) {
+      return NextResponse.json({ error: 'ไม่พบทรัพยากร หรือไม่มี URL' }, { status: 404 })
+    }
+    // scope check
+    if (scopeSourceIds && !scopeSourceIds.includes(resource.dataset.ckanSourceId ?? '')) {
+      return NextResponse.json({ error: 'ทรัพยากรนี้ไม่อยู่ในขอบเขตของคุณ' }, { status: 403 })
+    }
+
+    const job = await prisma.scanJob.create({
+      data: {
+        type:        'resource',
+        status:      'running',
+        startedAt:   new Date(),
+        triggeredBy: caller.userId,
+        totalItems:  1,
+        datasetId:   resource.dataset.id,
+      },
+    })
+
+    await enqueueResourceCheck({
+      jobId:                job.id,
+      resourceId:           resource.id,
+      resourceCkanId:       resource.ckanId,
+      resourceUrl:          resource.url,
+      resourceFormat:       resource.format,
+      packageId:            resource.dataset.id,
+      datasetCkanId:        resource.dataset.ckanId,
+      metadataModified:     resource.metadataModified?.toISOString() ?? null,
+      updateFrequency:      resource.dataset.updateFrequency,
+      datasetResourceCount: 1,
+    })
+
+    return NextResponse.json({
+      ok: true, jobId: job.id, enqueued: 1,
+      message: 'เริ่มตรวจสอบทรัพยากร 1 รายการ',
+    })
+  }
+
+  // ── ป้องกัน full scan ซ้อนกัน ──────────────────────────────────
   if (!body.datasetId) {
     const activeScan = await prisma.scanJob.findFirst({
-      where: { type: 'full', status: { in: ['running', 'pending'] } },
+      where:  { type: 'full', status: { in: ['running', 'pending'] } },
       select: { id: true },
     })
     if (activeScan) {
@@ -47,19 +106,17 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
     }
   }
 
+  // ── Dataset / full scan ─────────────────────────────────────────
   const where: Prisma.DatasetWhereInput = {
-    ...(body.datasetId  ? { id: body.datasetId } : {}),
-    ...(scopeSourceIds  ? { ckanSourceId: { in: scopeSourceIds } } : {}),
+    ...(body.datasetId ? { id: body.datasetId } : {}),
+    ...(scopeSourceIds ? { ckanSourceId: { in: scopeSourceIds } } : {}),
   }
 
   const datasets = await prisma.dataset.findMany({
     where,
     include: {
       resources: {
-        select: {
-          id: true, ckanId: true, url: true,
-          format: true, metadataModified: true, packageId: true,
-        },
+        select: { id: true, ckanId: true, url: true, format: true, metadataModified: true, packageId: true },
       },
     },
   })
@@ -68,12 +125,12 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
     return NextResponse.json({ error: 'ไม่พบชุดข้อมูลในขอบเขตของคุณ' }, { status: 404 })
   }
 
-  // นับเฉพาะ resource ที่มี URL จริง ๆ (ที่จะ enqueue) เพื่อให้ totalItems ตรงกับ done_items
-  const scannable = datasets.map(d => ({
-    dataset: d,
-    resources: d.resources.filter((r: { url: string | null }) => r.url),
+  // นับเฉพาะ resource ที่มี URL — ให้ totalItems ตรงกับ done_items จริง
+  const scannable = (datasets as DatasetRow[]).map(dataset => ({
+    dataset,
+    resources: dataset.resources.filter(r => r.url),
   }))
-  const totalResources = scannable.reduce((s, d) => s + d.resources.length, 0)
+  const totalResources = scannable.reduce((s: number, d: { resources: ResourceRow[] }) => s + d.resources.length, 0)
 
   const job = await prisma.scanJob.create({
     data: {
@@ -90,8 +147,6 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
 
   let enqueued = 0
   for (const { dataset, resources } of scannable) {
-    const resourceIds = resources.map((r: { id: string }) => r.id)
-
     for (const resource of resources) {
       await enqueueResourceCheck({
         jobId:                job.id,
@@ -103,7 +158,7 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
         datasetCkanId:        dataset.ckanId,
         metadataModified:     resource.metadataModified?.toISOString() ?? null,
         updateFrequency:      dataset.updateFrequency,
-        datasetResourceCount: resourceIds.length,
+        datasetResourceCount: resources.length,
       })
       enqueued++
     }

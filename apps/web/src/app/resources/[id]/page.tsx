@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { timelinessLabel, timelinessColor, structuredLabel, severityColor, severityLabel } from '@/lib/scoring'
+import { apiFetch } from '@/lib/apiClient'
+import ConfirmDialog from '@/app/_components/ConfirmDialog'
 
 interface ValidityReportRow {
   blankHeader: number; duplicateHeader: number; blankRow: number
@@ -57,9 +59,27 @@ function safeDateShort(s: string | null | undefined): string {
 
 export default function ResourceDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [data, setData] = useState<ResourceDetail | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [data,     setData]     = useState<ResourceDetail | null>(null)
+  const [error,    setError]    = useState<string | null>(null)
   const [activeCheck, setActiveCheck] = useState(0)
+  const [scanning,     setScanning]     = useState(false)
+  const [scanMsg,      setScanMsg]      = useState('')
+  const [confirmOpen,  setConfirmOpen]  = useState(false)
+
+  async function triggerScan() {
+    setConfirmOpen(false)
+    setScanning(true); setScanMsg('')
+    try {
+      const r = await apiFetch('/api/scan', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ resourceId: id }),
+      })
+      const d = await r.json()
+      setScanMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    } catch (e) { setScanMsg('เกิดข้อผิดพลาด: ' + String(e)) }
+    setScanning(false)
+  }
 
   useEffect(() => {
     fetch(`/api/resources/${id}`)
@@ -110,11 +130,29 @@ export default function ResourceDetailPage() {
               )}
             </div>
           </div>
-          {data.url && (
-            <a href={data.url} target="_blank" rel="noreferrer" className="btn-secondary text-xs shrink-0">ดาวน์โหลด ↓</a>
-          )}
+          <div className="flex gap-2 shrink-0">
+            {data.url && (
+              <a href={data.url} target="_blank" rel="noreferrer" className="btn-secondary text-xs">ดาวน์โหลด ↓</a>
+            )}
+            <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
+              {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
+            </button>
+          </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen} title="ยืนยันการตรวจสอบ"
+        message={`ตรวจสอบคุณภาพทรัพยากร "${data.name || data.ckanId}" ใช่หรือไม่?`}
+        confirmLabel="▶ เริ่มตรวจสอบ"
+        onConfirm={triggerScan} onCancel={() => setConfirmOpen(false)}
+      />
+      {scanMsg && (
+        <div className={`mb-5 p-3 rounded-lg text-sm border ${
+          scanMsg.includes('ผิดพลาด') || scanMsg.includes('สิทธิ์')
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : 'bg-blue-50 border-blue-200 text-blue-800'
+        }`}>{scanMsg}</div>
+      )}
 
       {/* Check history tabs */}
       {data.checks.length > 1 && (

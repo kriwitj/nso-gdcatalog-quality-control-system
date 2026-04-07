@@ -167,6 +167,45 @@ chmod +x scripts/deploy.sh
 
 ---
 
+### Machine Readable Status
+
+ระบบกำหนด status จาก format ของทรัพยากรที่ดาวน์โหลดได้จริง (HTTP 200) เท่านั้น
+
+| Status | ค่า DB | เงื่อนไข |
+|--------|--------|----------|
+| อ่านได้ทั้งหมด | `fully_machine_readable` | format อยู่ใน MACHINE_READABLE_FORMATS ทั้งหมด: `csv, tsv, json, jsonl, geojson, xml, xlsx, xls, ods, parquet, avro, ndjson` |
+| อ่านได้บางส่วน | `partially_machine_readable` | format เป็น `zip` (อาจมีไฟล์ machine-readable ข้างใน แต่ยังไม่แตก) หรือ format ที่มีโครงสร้างบางส่วน เช่น `kml, gpkg, gml` |
+| อ่านไม่ได้ | `not_machine_readable` | format อยู่ใน UNSTRUCTURED_FORMATS: `pdf, doc, docx, ppt, pptx, jpg, jpeg, png, gif, mp4` |
+| ไม่ทราบ | `unknown` | HTTP ไม่ใช่ 200/206 (เช่น 404, 403), connect ไม่ได้, format เป็น API/WMS/WFS/Database ที่ตรวจสอบด้วยไฟล์ไม่ได้ หรือ format ไม่รู้จัก |
+
+> **หมายเหตุ**: ถ้า HTTP status ไม่ใช่ 200/206 (เช่น 404) ระบบจะ**ไม่**สรุปจาก format ที่ประกาศไว้ใน metadata เพราะไม่สามารถยืนยันได้
+
+---
+
+### Timeliness Status
+
+ระบบเปรียบเทียบวันที่แก้ไขล่าสุด (`metadata_modified`) กับความถี่การอัปเดต (`update_frequency`) ของชุดข้อมูล
+
+| Status | ค่า DB | เงื่อนไข |
+|--------|--------|----------|
+| ทันสมัย | `up_to_date` | จำนวนวันนับตั้งแต่ `metadata_modified` ≤ ค่า warn threshold ตามความถี่ |
+| ใกล้หมด | `warning` | เกิน warn threshold แต่ยังไม่เกิน outdated threshold |
+| ล้าสมัย | `outdated` | จำนวนวันเกิน outdated threshold ตามความถี่ |
+| ไม่ทราบ | `unknown` | ไม่มี `metadata_modified` หรือ parse วันที่ไม่ได้ |
+
+**Threshold ตามความถี่การอัปเดต**:
+
+| ความถี่ | ทันสมัย (≤ วัน) | ใกล้หมด (≤ วัน) | หมายเหตุ |
+|---------|----------------|----------------|---------|
+| รายวัน / daily | 2 | 7 | เกิน 7 วัน = ล้าสมัย |
+| รายสัปดาห์ / weekly | 10 | 21 | เกิน 21 วัน = ล้าสมัย |
+| รายเดือน / monthly | 45 | 90 | เกิน 90 วัน = ล้าสมัย |
+| รายไตรมาส / quarterly | 100 | 120 | เกิน 120 วัน = ล้าสมัย |
+| รายปี / yearly | 400 | 550 | เกิน 550 วัน = ล้าสมัย |
+| ไม่ระบุ / อื่นๆ | 180 | 365 | ใช้ค่า default |
+
+---
+
 ## API Reference
 
 ### Auth

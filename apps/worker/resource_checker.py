@@ -180,12 +180,12 @@ def check_resource(
             head = requests.head(resource_url, headers=headers, timeout=15, allow_redirects=True, verify=False)
             result["http_status"] = head.status_code
         except Exception as e:
-            result["downloadable"] = False
-            result["error_msg"] = f"HEAD failed: {e}"
-            result["structured_status"] = classify_structured(resource_format)
-            result["is_machine_readable"] = is_machine_readable_fmt(resource_format)
-            result["is_structured"] = result["is_machine_readable"]
-            result["scan_duration_ms"] = int((time.time() - t0) * 1000)
+            result["downloadable"]        = False
+            result["error_msg"]           = f"HEAD failed: {e}"
+            result["structured_status"]   = "unknown"
+            result["is_machine_readable"] = None
+            result["is_structured"]       = None
+            result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
             return result
 
         # ── 3. Format detection ───────────────────────────────────
@@ -200,9 +200,13 @@ def check_resource(
         result["is_structured"] = result["is_machine_readable"]
 
         if result["http_status"] not in (200, 206):
-            result["downloadable"] = False
-            result["error_msg"] = f"HTTP {result['http_status']}"
-            result["scan_duration_ms"] = int((time.time() - t0) * 1000)
+            result["downloadable"]       = False
+            result["error_msg"]          = f"HTTP {result['http_status']}"
+            # ไม่สามารถตรวจสอบได้จริง → ไม่ทราบโครงสร้าง
+            result["structured_status"]  = "unknown"
+            result["is_machine_readable"] = None
+            result["is_structured"]      = None
+            result["scan_duration_ms"]   = int((time.time() - t0) * 1000)
             return result
 
         result["downloadable"] = True

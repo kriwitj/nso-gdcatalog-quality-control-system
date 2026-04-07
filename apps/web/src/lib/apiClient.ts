@@ -30,24 +30,48 @@ function makeHeaders(token: string | null, init: RequestInit): HeadersInit {
   }
 }
 
+function redirectLogin() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('user')
+  window.location.href = '/login'
+}
+
+function networkErrorResponse() {
+  return new Response(JSON.stringify({ error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const token = typeof window !== 'undefined'
     ? localStorage.getItem('access_token')
     : null
 
-  let res = await fetch(url, { ...init, headers: makeHeaders(token, init) })
+  let res: Response
+  try {
+    res = await fetch(url, { ...init, headers: makeHeaders(token, init) })
+  } catch {
+    // network error, server down, CORS ฯลฯ → ไม่ throw ออกไป
+    return networkErrorResponse()
+  }
 
-  if (res.status === 401 && token) {
-    const newToken = await tryRefresh()
-    if (newToken) {
-      res = await fetch(url, { ...init, headers: makeHeaders(newToken, init) })
-    } else {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
+  if (res.status === 401) {
+    if (token) {
+      // มี token แต่ expired → ลอง refresh
+      const newToken = await tryRefresh()
+      if (newToken) {
+        try {
+          return await fetch(url, { ...init, headers: makeHeaders(newToken, init) })
+        } catch {
+          return networkErrorResponse()
+        }
       }
     }
+    // ไม่มี token หรือ refresh ไม่สำเร็จ → redirect /login
+    redirectLogin()
+    return res
   }
 
   return res

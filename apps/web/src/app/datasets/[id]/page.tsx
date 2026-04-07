@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/apiClient'
+import ConfirmDialog from '@/app/_components/ConfirmDialog'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, Tooltip,
@@ -79,8 +81,9 @@ export default function DatasetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<DatasetDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scanning, setScanning] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [scanning,    setScanning]    = useState(false)
+  const [msg,         setMsg]         = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
     setError(null)
@@ -97,16 +100,17 @@ export default function DatasetDetailPage() {
       .catch(e => { console.error(e); setError(e.message) })
   }, [id])
 
-  async function triggerScan() {
+  async function doScan() {
+    setConfirmOpen(false)
     setScanning(true); setMsg('')
     try {
-      const r = await fetch('/api/scan', {
-        method: 'POST',
+      const r = await apiFetch('/api/scan', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ datasetId: id }),
+        body:    JSON.stringify({ datasetId: id }),
       })
       const d = await r.json()
-      setMsg(d.message || 'เริ่มตรวจสอบแล้ว')
+      setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
     } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)) }
     setScanning(false)
   }
@@ -165,12 +169,28 @@ export default function DatasetDetailPage() {
               เปิดใน CKAN ↗
             </a>
           )}
-          <button onClick={triggerScan} disabled={scanning} className="btn-primary text-xs">
+          <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
           </button>
         </div>
       </div>
-      {msg && <div className="mb-6 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">{msg}</div>}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="ยืนยันการตรวจสอบ"
+        message={`ตรวจสอบคุณภาพชุดข้อมูล "${data.title || data.name}" ใช่หรือไม่?`}
+        confirmLabel="▶ เริ่มตรวจสอบ"
+        onConfirm={doScan}
+        onCancel={() => setConfirmOpen(false)}
+      />
+
+      {msg && (
+        <div className={`mb-6 p-3 rounded-lg text-sm border ${
+          msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : 'bg-blue-50 border-blue-200 text-blue-800'
+        }`}>{msg}</div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 card p-5">
