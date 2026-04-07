@@ -1,0 +1,21 @@
+version: '3.9'
+
+# docker-compose.windows.yml
+# Windows override — ใช้ร่วมกับ docker-compose.yml
+# รันด้วย: docker compose -f docker-compose.yml -f docker-compose.windows.yml up -d
+
+services:
+  worker:
+    volumes:
+      # Windows path สำหรับ temp files
+      - type: volume
+        source: tmpfiles
+        target: /tmp/ogd_files
+    environment:
+      # เพิ่ม timeout เผื่อ Windows network ช้ากว่า Linux
+      DOWNLOAD_TIMEOUT: 90
+
+  web:
+    environment:
+      # Prisma ต้องการ explicit DATABASE_URL บน Windows
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ogd}:${POSTGRES_PASSWORD:-ogdpassword}@postgres:5432/${POSTGRES_DB:-ogdquality}

@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Organizations ───────────────────────────────────────────────
+model Organization {
+  id          String    @id @default(uuid())
+  ckanId      String    @unique @map("ckan_id")
+  name        String
+  title       String?
+  description String?
+  imageUrl    String?   @map("image_url")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  datasets    Dataset[]
+
+  @@map("organizations")
+}
+
+// ─── Datasets ────────────────────────────────────────────────────
+model Dataset {
+  id               String        @id @default(uuid())
+  ckanId           String        @unique @map("ckan_id")
+  organizationId   String?       @map("organization_id")
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  name             String
+  title            String?
+  notes            String?
+  license          String?
+  tags             String[]
+  groups           String[]
+  updateFrequency  String?       @map("update_frequency")   // daily/weekly/monthly/yearly
+  metadataCreated  DateTime?     @map("metadata_created")
+  metadataModified DateTime?     @map("metadata_modified")
+  resourceCount    Int           @default(0) @map("resource_count")
+  isOpen           Boolean       @default(false) @map("is_open")
+
+  // Quality scores (0-100)
+  completenessScore    Float?  @map("completeness_score")
+  timelinessScore      Float?  @map("timeliness_score")
+  accessibilityScore   Float?  @map("accessibility_score")
+  machineReadableScore Float?  @map("machine_readable_score")
+  validityScore        Float?  @map("validity_score")
+  overallScore         Float?  @map("overall_score")
+  qualityGrade         String? @map("quality_grade")     // A/B/C/D/F
+
+  // Aggregate status
+  machineReadableStatus String? @map("machine_readable_status") // fully/partially/not/unknown
+  timelinessStatus      String? @map("timeliness_status")       // up_to_date/warning/outdated/unknown
+
+  // Scan tracking
+  lastScanAt     DateTime? @map("last_scan_at")
+  lastScanStatus String?   @map("last_scan_status") // pending/running/done/error
+  scanErrorMsg   String?   @map("scan_error_msg")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ckanSourceId String?     @map("ckan_source_id")
+  ckanSource   CkanSource? @relation(fields: [ckanSourceId], references: [id], onDelete: SetNull)
+
+  resources    Resource[]
+  scanJobs     ScanJob[]
+  scoreHistory QualityScoreHistory[]
+
+  @@index([organizationId])
+  @@index([overallScore])
+  @@index([qualityGrade])
+  @@index([lastScanAt])
+  @@index([ckanSourceId])
+  @@map("datasets")
+}
+
+// ─── Resources ───────────────────────────────────────────────────
+model Resource {
+  id               String    @id @default(uuid())
+  ckanId           String    @unique @map("ckan_id")
+  packageId        String    @map("package_id")
+  dataset          Dataset   @relation(fields: [packageId], references: [id])
+  name             String?
+  description      String?
+  format           String?
+  url              String?
+  size             BigInt?
+  mimeType         String?   @map("mime_type")
+  hash             String?
+  metadataModified DateTime? @map("metadata_modified")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  checks ResourceCheck[]
+
+  @@index([packageId])
+  @@map("resources")
+}
+
+// ─── Scan Jobs ───────────────────────────────────────────────────
+model ScanJob {
+  id          String    @id @default(uuid())
+  datasetId   String?   @map("dataset_id")
+  dataset     Dataset?  @relation(fields: [datasetId], references: [id])
+  status      String    @default("pending") // pending/running/done/error
+  type        String    @default("full")    // full/resource/catalog_sync
+  triggeredBy String?   @map("triggered_by")
+  totalItems  Int       @default(0) @map("total_items")
+  doneItems   Int       @default(0) @map("done_items")
+  errorItems  Int       @default(0) @map("error_items")
+  startedAt   DateTime? @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  errorMsg    String?   @map("error_msg")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("scan_jobs")
+}
+
+// ─── Resource Checks ─────────────────────────────────────────────
+model ResourceCheck {
+  id             String   @id @default(uuid())
+  resourceId     String   @map("resource_id")
+  resource       Resource @relation(fields: [resourceId], references: [id])
+  scanJobId      String?  @map("scan_job_id")
+  checkedAt      DateTime @default(now()) @map("checked_at")
+
+  // HTTP check
+  httpStatus    Int?    @map("http_status")
+  downloadable  Boolean? 
+  contentType   String?  @map("content_type")
+  fileSize      BigInt?  @map("file_size")
+  redirectUrl   String?  @map("redirect_url")
+
+  // Format analysis
+  detectedFormat    String?  @map("detected_format")
+  isMachineReadable Boolean? @map("is_machine_readable")
+  isStructured      Boolean? @map("is_structured")
+  structuredStatus  String?  @map("structured_status")  // structured/semi_structured/unstructured/unknown
+  timelinessStatus  String?  @map("timeliness_status")  // up_to_date/warning/outdated/unknown
+
+  // Tabular analysis
+  encoding     String?
+  rowCount     Int?    @map("row_count")
+  columnCount  Int?    @map("column_count")
+  isValid      Boolean? @map("is_valid")
+  errorCount   Int?    @map("error_count")
+  warningCount Int?    @map("warning_count")
+  partialScan  Boolean @default(false) @map("partial_scan")
+  
+  // Performance
+  scanDurationMs Int?    @map("scan_duration_ms")
+  errorMsg       String? @map("error_msg")
+
+  validityReport ValidityReport?
+
+  @@index([resourceId])
+  @@index([checkedAt])
+  @@map("resource_checks")
+}
+
+// ─── Validity Reports ─────────────────────────────────────────────
+model ValidityReport {
+  id      String        @id @default(uuid())
+  checkId String        @unique @map("check_id")
+  check   ResourceCheck @relation(fields: [checkId], references: [id])
+
+  // Error counts (from Frictionless)
+  blankHeader     Int @default(0) @map("blank_header")
+  duplicateHeader Int @default(0) @map("duplicate_header")
+  blankRow        Int @default(0) @map("blank_row")
+  extraValue      Int @default(0) @map("extra_value")
+  extraHeader     Int @default(0) @map("extra_header")
+  missingValue    Int @default(0) @map("missing_value")
+  formatError     Int @default(0) @map("format_error")
+  schemaError     Int @default(0) @map("schema_error")
+  encodingError   Int @default(0) @map("encoding_error")
+  sourceError     Int @default(0) @map("source_error")
+
+  // Summary
+  encoding     String?
+  errorMessage String? @map("error_message")
+  valid        Boolean?
+  severity     String?  // ok/low/medium/high/critical
+  primaryIssue String?  @map("primary_issue")
+  rawJson      Json?    @map("raw_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("validity_reports")
+}
+
+// ─── Org Hierarchy ───────────────────────────────────────────────
+model Ministry {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  code        String?      @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  departments Department[]
+  ckanSources CkanSource[]
+  users       User[]
+
+  @@map("ministries")
+}
+
+model Department {
+  id          String       @id @default(uuid())
+  ministryId  String       @map("ministry_id")
+  ministry    Ministry     @relation(fields: [ministryId], references: [id])
+  name        String
+  code        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  divisions   Division[]
+  ckanSources CkanSource[]
+  users       User[]
+
+  @@unique([ministryId, name])
+  @@index([ministryId])
+  @@map("departments")
+}
+
+model Division {
+  id           String       @id @default(uuid())
+  departmentId String       @map("department_id")
+  department   Department   @relation(fields: [departmentId], references: [id])
+  name         String
+  code         String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  groups       Group[]
+  ckanSources  CkanSource[]
+  users        User[]
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+  @@map("divisions")
+}
+
+model Group {
+  id         String   @id @default(uuid())
+  divisionId String   @map("division_id")
+  division   Division @relation(fields: [divisionId], references: [id])
+  name       String
+  code       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  users      User[]
+
+  @@unique([divisionId, name])
+  @@index([divisionId])
+  @@map("groups")
+}
+
+// ─── CKAN Sources (URL config) ────────────────────────────────────
+model CkanSource {
+  id           String      @id @default(uuid())
+  name         String
+  url          String      @unique
+  apiKey       String?     @map("api_key")
+  isActive     Boolean     @default(true) @map("is_active")
+  // ระบุขอบเขตหน่วยงาน (optional — เลือกระดับที่เหมาะสม)
+  ministryId   String?     @map("ministry_id")
+  ministry     Ministry?   @relation(fields: [ministryId], references: [id])
+  departmentId String?     @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id])
+  divisionId   String?     @map("division_id")
+  division     Division?   @relation(fields: [divisionId], references: [id])
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  datasets     Dataset[]
+
+  @@map("ckan_sources")
+}
+
+// ─── Auth: Users ─────────────────────────────────────────────────
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  email        String?     @unique
+  passwordHash String      @map("password_hash")
+  role         String      @default("viewer") // admin/editor/viewer
+  isActive     Boolean     @default(true) @map("is_active")
+  // RBAC scope — ระบุหน่วยงานที่รับผิดชอบ (ระบุระดับเดียวที่เหมาะสม)
+  ministryId   String?     @map("ministry_id")
+  ministry     Ministry?   @relation(fields: [ministryId], references: [id])
+  departmentId String?     @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id])
+  divisionId   String?     @map("division_id")
+  division     Division?   @relation(fields: [divisionId], references: [id])
+  groupId      String?     @map("group_id")
+  group        Group?      @relation(fields: [groupId], references: [id])
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// ─── Auth: Refresh Tokens ─────────────────────────────────────────
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── Score History ────────────────────────────────────────────────
+model QualityScoreHistory {
+  id                   String   @id @default(uuid())
+  datasetId            String   @map("dataset_id")
+  dataset              Dataset  @relation(fields: [datasetId], references: [id])
+  recordedAt           DateTime @default(now()) @map("recorded_at")
+
+  completenessScore    Float?   @map("completeness_score")
+  timelinessScore      Float?   @map("timeliness_score")
+  accessibilityScore   Float?   @map("accessibility_score")
+  machineReadableScore Float?   @map("machine_readable_score")
+  validityScore        Float?   @map("validity_score")
+  overallScore         Float?   @map("overall_score")
+  qualityGrade         String?  @map("quality_grade")
+
+  @@index([datasetId, recordedAt])
+  @@map("quality_score_history")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String   // CREATE / UPDATE / DELETE
+  entity    String   // User / CkanSource / Ministry / etc.
+  entityId  String?  @map("entity_id")
+  detail    Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

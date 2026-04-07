@@ -1,0 +1,203 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { scoreToGrade, gradeColor, fmt } from '@/lib/scoring'
+import { apiFetch } from '@/lib/apiClient'
+import Link from 'next/link'
+
+interface Stats {
+  totalDatasets: number
+  totalResources: number
+  totalOrganizations: number
+  avgScore: number | null
+  gradeDistribution: { grade: string; count: number }[]
+  machineReadableDistribution: { status: string; label: string; count: number }[]
+  timelinessDistribution: { status: string; label: string; count: number }[]
+  topDatasets: { id: string; title: string; overallScore: number | null; qualityGrade: string | null; organization: { name: string } | null }[]
+  lowDatasets:  { id: string; title: string; overallScore: number | null; qualityGrade: string | null; organization: { name: string } | null }[]
+  lastSyncAt: string | null
+  pendingJobs: number
+}
+
+const GRADE_COLORS: Record<string, string> = {
+  A: '#10b981', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444', '?': '#9ca3af',
+}
+
+const MR_COLORS: Record<string, string> = {
+  fully_machine_readable: '#10b981',
+  partially_machine_readable: '#f59e0b',
+  not_machine_readable: '#ef4444',
+  unknown: '#9ca3af',
+}
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    apiFetch('/api/stats').then(async r => {
+      if (!r.ok) { setLoading(false); return }
+      setStats(await r.json())
+      setLoading(false)
+    })
+  }, [])
+
+  async function triggerSync() {
+    setSyncing(true); setMsg('')
+    const r = await apiFetch('/api/sync', { method: 'POST' })
+    const d = await r.json()
+    setMsg(r.ok ? (d.message || 'เริ่มซิงค์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    setSyncing(false)
+  }
+
+  async function triggerScan() {
+    setScanning(true); setMsg('')
+    const r = await apiFetch('/api/scan', { method: 'POST' })
+    const d = await r.json()
+    setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    setScanning(false)
+  }
+
+  if (loading) return (
+    <div className="p-8 flex items-center justify-center h-64 text-gray-400">กำลังโหลด...</div>
+  )
+  if (!stats) return (
+    <div className="p-8 flex items-center justify-center h-64 text-gray-400">ไม่สามารถโหลดข้อมูล กรุณาลองใหม่อีกครั้ง</div>
+  )
+
+  const s = stats
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">ภาพรวมคุณภาพข้อมูล</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            ซิงค์ล่าสุด: {s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={triggerSync} disabled={syncing} className="btn-secondary">
+            {syncing ? '⏳ กำลังซิงค์...' : '⟳ ซิงค์จาก CKAN'}
+          </button>
+          <button onClick={triggerScan} disabled={scanning} className="btn-primary">
+            {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบคุณภาพ'}
+          </button>
+        </div>
+      </div>
+      {msg && (
+        <div className={`mb-6 p-3 border rounded-lg text-sm ${
+          msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : 'bg-blue-50 border-blue-200 text-blue-800'
+        }`}>{msg}</div>
+      )}
+
+      {/* Top stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'ชุดข้อมูลทั้งหมด', value: s.totalDatasets.toLocaleString(), icon: '▤' },
+          { label: 'ทรัพยากรทั้งหมด',  value: s.totalResources.toLocaleString(),  icon: '📄' },
+          { label: 'หน่วยงาน',          value: s.totalOrganizations.toLocaleString(), icon: '🏛' },
+          { label: 'คะแนนเฉลี่ย',      value: `${fmt(s.avgScore)} / 100`,  icon: '⭐' },
+        ].map(c => (
+          <div key={c.label} className="stat-card">
+            <span className="text-2xl">{c.icon}</span>
+            <div className="text-2xl font-semibold text-gray-900">{c.value}</div>
+            <div className="text-xs text-gray-500">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Grade distribution */}
+        <div className="card p-5">
+          <h3 className="text-sm font-medium text-gray-700 mb-4">การกระจายเกรดคุณภาพ</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={s.gradeDistribution} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v) => [`${v} ชุดข้อมูล`, 'จำนวน']} />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {s.gradeDistribution.map(d => (
+                  <Cell key={d.grade} fill={GRADE_COLORS[d.grade] || '#9ca3af'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {s.gradeDistribution.map(d => (
+              <span key={d.grade} className={`badge ${gradeColor(d.grade)}`}>
+                {d.grade}: {d.count}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Machine readable pie */}
+        <div className="card p-5">
+          <h3 className="text-sm font-medium text-gray-700 mb-4">Machine Readable Status</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                {s.machineReadableDistribution.map(d => (
+                  <Cell key={d.status} fill={MR_COLORS[d.status] || '#9ca3af'} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v, n) => [`${v}`, n]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Timeliness pie */}
+        <div className="card p-5">
+          <h3 className="text-sm font-medium text-gray-700 mb-4">Timeliness Status</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                {s.timelinessDistribution.map((d, i) => (
+                  <Cell key={d.status} fill={['#10b981', '#f59e0b', '#ef4444', '#9ca3af'][i % 4]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Top/Bottom datasets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DatasetRankCard title="🏆 ชุดข้อมูลคุณภาพดีสุด" datasets={s.topDatasets} />
+        <DatasetRankCard title="⚠️ ชุดข้อมูลที่ต้องปรับปรุง" datasets={s.lowDatasets} />
+      </div>
+    </div>
+  )
+}
+
+function DatasetRankCard({ title, datasets }: { title: string; datasets: Stats['topDatasets'] }) {
+  return (
+    <div className="card p-5">
+      <h3 className="text-sm font-medium text-gray-700 mb-4">{title}</h3>
+      <div className="space-y-3">
+        {datasets.length === 0 && <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีข้อมูล</p>}
+        {datasets.map(d => (
+          <Link href={`/datasets/${d.id}`} key={d.id} className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 -mx-2 transition-colors">
+            <span className={`badge ${gradeColor(d.qualityGrade || '?')} text-sm font-semibold w-8 justify-center`}>
+              {d.qualityGrade || '?'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-800 truncate">{d.title || '-'}</div>
+              <div className="text-xs text-gray-400">{d.organization?.name || '-'}</div>
+            </div>
+            <div className="text-sm font-semibold text-gray-600 shrink-0">{fmt(d.overallScore)}</div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
