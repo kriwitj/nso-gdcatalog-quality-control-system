@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 
 const NAV = [
@@ -28,7 +28,7 @@ function getHostname(url: string) {
   try { return new URL(url).hostname } catch { return url }
 }
 
-export default function PortalShell({ children }: { children: React.ReactNode }) {
+export default function PortalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
   const [user,    setUser]    = useState<UserInfo | null>(null)

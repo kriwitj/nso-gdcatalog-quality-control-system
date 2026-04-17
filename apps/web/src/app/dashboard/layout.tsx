@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react'
 import PortalShell from '@/app/_components/PortalShell'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   return <PortalShell>{children}</PortalShell>
 }

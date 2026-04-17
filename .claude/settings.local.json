@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(ls -la /d/kriwit.j/10.Programming/2569/25690403_quality-gdcatalog/ogd-quality-windows/ogd-quality-windows/*.md)",
-      "Bash(grep -E \"\\(page\\\\.tsx|layout\\\\.tsx\\)$\")"
+      "Bash(grep -E \"\\(page\\\\.tsx|layout\\\\.tsx\\)$\")",
+      "Bash(npm run *)"
     ]
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { apiFetch } from '@/lib/apiClient'
 
 interface OrgItem { id: string; name: string }
@@ -204,7 +204,7 @@ export default function AdminCkanSourcesPage() {
   )
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <label className="text-xs text-gray-500 w-24 pt-2.5 shrink-0">{label}</label>

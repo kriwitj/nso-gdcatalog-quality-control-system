@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import './globals.css'
 import { ThemeProvider } from './_components/ThemeProvider'
 
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
   description: 'ระบบตรวจคุณภาพข้อมูลเปิดภาครัฐ GDCatalog Smart Plus',
 }
 
-export default function RootLayout({ children }: { children: unknown }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="th" suppressHydrationWarning>
       <body>

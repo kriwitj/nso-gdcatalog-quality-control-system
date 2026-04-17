@@ -32,7 +32,9 @@ interface ResourceDetail {
   checks: CheckRow[]
 }
 
-const VR_FIELDS: { key: keyof ValidityReportRow; label: string }[] = [
+type NumericVRKey = 'blankHeader' | 'duplicateHeader' | 'blankRow' | 'extraValue' | 'extraHeader' | 'missingValue' | 'formatError' | 'schemaError' | 'encodingError' | 'sourceError'
+
+const VR_FIELDS: { key: NumericVRKey; label: string }[] = [
   { key: 'blankHeader',     label: 'หัวคอลัมน์ว่าง (Blank Header)' },
   { key: 'duplicateHeader', label: 'หัวคอลัมน์ซ้ำ (Duplicate Header)' },
   { key: 'blankRow',        label: 'แถวว่าง (Blank Row)' },
@@ -265,7 +267,7 @@ export default function ResourceDetailPage() {
               {vr && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                   {VR_FIELDS.map(f => {
-                    const val = vr[f.key] as number
+                    const val = vr[f.key]
                     return (
                       <div key={f.key} className={`rounded-lg p-3 border text-sm ${val > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
                         <div className={`text-xl font-semibold ${val > 0 ? 'text-red-600' : 'text-gray-300'}`}>{val}</div>
@@ -277,7 +279,7 @@ export default function ResourceDetailPage() {
               )}
 
               {/* Raw JSON */}
-              {vr?.rawJson && (
+              {vr?.rawJson != null && (
                 <details>
                   <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Raw JSON</summary>
                   <pre className="mt-2 text-xs bg-gray-50 p-3 rounded-lg overflow-x-auto border border-gray-100 text-gray-600">

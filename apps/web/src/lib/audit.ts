@@ -9,7 +9,7 @@ export async function logAudit(params: {
   ip?: string
 }) {
   try {
-    await prisma.auditLog.create({ data: params })
+    await prisma.auditLog.create({ data: { ...params, detail: params.detail as object | undefined } })
   } catch (err) {
     console.error('[audit] failed to log:', err)
   }
