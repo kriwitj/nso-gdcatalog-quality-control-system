@@ -32,10 +32,10 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
 # Generated client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-# Prisma CLI + all @prisma/* packages (needed for migrate deploy)
+# Prisma CLI + all @prisma/* packages + .bin/ (wasm files co-located with binary)
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 
 USER nextjs
 EXPOSE 3000
