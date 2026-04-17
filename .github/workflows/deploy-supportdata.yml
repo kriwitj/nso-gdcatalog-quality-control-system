@@ -21,14 +21,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # (optional) login ถ้าใช้ private registry เช่น GHCR
-      # - name: Login to GHCR
-      #   run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Update deployed source
+        run: |
+          cd /opt/apps/nso-gdcatalog-quality-control-system
+          git fetch origin
+          git reset --hard origin/main
+
+      - name: Write .env file
+        run: |
+          cat > /opt/apps/nso-gdcatalog-quality-control-system/.env << 'ENVEOF'
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          CKAN_BASE_URL=${{ secrets.CKAN_BASE_URL }}
+          CKAN_API_KEY=${{ secrets.CKAN_API_KEY }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_ACCESS_EXPIRES_IN=${{ secrets.JWT_ACCESS_EXPIRES_IN || '15m' }}
+          JWT_REFRESH_EXPIRES_IN=${{ secrets.JWT_REFRESH_EXPIRES_IN || '7d' }}
+          MAX_FILE_SIZE_MB=${{ secrets.MAX_FILE_SIZE_MB || '100' }}
+          MAX_ROWS=${{ secrets.MAX_ROWS || '200000' }}
+          WORKER_CONCURRENCY=${{ secrets.WORKER_CONCURRENCY || '3' }}
+          DOWNLOAD_TIMEOUT=${{ secrets.DOWNLOAD_TIMEOUT || '60' }}
+          ENVEOF
 
       - name: Deploy with Docker Compose
         run: |
           cd /opt/apps/nso-gdcatalog-quality-control-system
           docker compose -f docker-compose.prod.yml up -d --build --scale worker=2
+
+      - name: Show container status
+        if: failure()
+        run: |
+          cd /opt/apps/nso-gdcatalog-quality-control-system
+          docker compose -f docker-compose.prod.yml ps
+
+      - name: Show logs
+        if: failure()
+        run: |
+          cd /opt/apps/nso-gdcatalog-quality-control-system
+          docker compose -f docker-compose.prod.yml logs --no-color redis postgres web worker
 
       - name: Cleanup unused images
         run: docker image prune -f

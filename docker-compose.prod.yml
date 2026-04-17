@@ -22,7 +22,16 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${REDIS_PASSWORD}"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - redisdata:/data
     healthcheck:
