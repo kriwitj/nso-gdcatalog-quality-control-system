@@ -10,3 +10,8 @@ logs/
 # Ignore OS files
 .DS_Store
 Thumbs.db
+# Ignore IDE files
+.vscode/
+.idea/
+# Ignore next.js build output
+.next/
