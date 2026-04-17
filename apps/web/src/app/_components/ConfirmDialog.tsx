@@ -23,9 +23,9 @@ export default function ConfirmDialog({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-2">{title}</h3>
-        <p className="text-sm text-gray-500 mb-6 leading-relaxed">{message}</p>
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">{message}</p>
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}

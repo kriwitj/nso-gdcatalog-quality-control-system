@@ -15,10 +15,10 @@ interface Job {
 interface QueueLengths { resourceQueue: number; scoreQueue: number }
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: 'text-amber-700 bg-amber-50 border-amber-200',
-  running: 'text-blue-700 bg-blue-50 border-blue-200',
-  done:    'text-emerald-700 bg-emerald-50 border-emerald-200',
-  error:   'text-red-700 bg-red-50 border-red-200',
+  pending: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/30 dark:border-amber-700',
+  running: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-900/30 dark:border-blue-700',
+  done:    'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700',
+  error:   'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-700',
 }
 const STATUS_LABEL: Record<string, string> = {
   pending: '⏳ รอ', running: '▶ กำลังทำ', done: '✓ เสร็จ', error: '✕ ผิดพลาด',
@@ -93,8 +93,8 @@ export default function JobsPage() {
         {[
           { label: 'กำลังทำ',           value: running,                   color: 'text-blue-600' },
           { label: 'รออยู่',             value: pending,                   color: 'text-amber-600' },
-          { label: 'คิว Resource Check', value: queue?.resourceQueue ?? '-', color: 'text-gray-700' },
-          { label: 'คิว Score Calc',     value: queue?.scoreQueue ?? '-',   color: 'text-gray-700' },
+          { label: 'คิว Resource Check', value: queue?.resourceQueue ?? '-', color: 'text-gray-700 dark:text-gray-300' },
+          { label: 'คิว Score Calc',     value: queue?.scoreQueue ?? '-',   color: 'text-gray-700 dark:text-gray-300' },
         ].map(c => (
           <div key={c.label} className="stat-card">
             <div className={`text-3xl font-semibold ${c.color}`}>{c.value}</div>
@@ -124,8 +124,8 @@ export default function JobsPage() {
       {msg && (
         <div className={`mb-5 p-3 rounded-lg text-sm border ${
           msg.includes('ผิดพลาด') || msg.includes('อยู่แล้ว') || msg.includes('สิทธิ์')
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : 'bg-blue-50 border-blue-200 text-blue-800'
+            ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
         }`}>{msg}</div>
       )}
 
@@ -192,10 +192,10 @@ export default function JobsPage() {
                   <td className="px-4 py-3 hidden md:table-cell">
                     {j.triggeredByUsername ? (
                       <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
                           {j.triggeredByUsername[0]}
                         </div>
-                        <span className="text-xs text-gray-600">{j.triggeredByUsername}</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{j.triggeredByUsername}</span>
                       </div>
                     ) : (
                       <span className="text-xs text-gray-300 dark:text-gray-500">ระบบ</span>

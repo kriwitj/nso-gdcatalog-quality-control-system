@@ -81,7 +81,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">ภาพรวมคุณภาพข้อมูล</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">ภาพรวมคุณภาพข้อมูล</h2>
           <p className="text-sm text-gray-500 mt-1">
             ซิงค์ล่าสุด: {s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
           </p>
@@ -110,8 +110,8 @@ export default function DashboardPage() {
       {msg && (
         <div className={`mb-6 p-3 border rounded-lg text-sm ${
           msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : 'bg-blue-50 border-blue-200 text-blue-800'
+            ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
         }`}>{msg}</div>
       )}
 
