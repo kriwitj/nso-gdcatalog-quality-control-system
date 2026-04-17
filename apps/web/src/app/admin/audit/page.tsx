@@ -45,7 +45,7 @@ export default function AdminAuditPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Audit Log</h1>
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Audit Log</h1>
 
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
@@ -72,8 +72,8 @@ export default function AdminAuditPage() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-            <tr>
+          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+            <tr className="border-b border-gray-100 dark:border-gray-700">
               <th className="px-4 py-3 text-left">เวลา</th>
               <th className="px-4 py-3 text-left">ผู้ดำเนินการ</th>
               <th className="px-4 py-3 text-left">Action</th>
@@ -81,27 +81,27 @@ export default function AdminAuditPage() {
               <th className="px-4 py-3 text-left">รายละเอียด</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">กำลังโหลด...</td></tr>}
-            {!loading && logs.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">ไม่พบรายการ</td></tr>}
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {loading && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>}
+            {!loading && logs.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">ไม่พบรายการ</td></tr>}
             {logs.map(log => (
-              <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+              <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   {new Date(log.createdAt).toLocaleString('th-TH')}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-600 font-mono">
+                <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 font-mono">
                   {log.userId ? log.userId.slice(0, 8) + '…' : '—'}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] || 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
                     {log.action}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs">
-                  <span className="text-gray-700 font-medium">{log.entity}</span>
-                  {log.entityId && <span className="text-gray-400 ml-1 font-mono">{log.entityId.slice(0, 8)}…</span>}
+                  <span className="text-gray-700 font-medium dark:text-gray-300">{log.entity}</span>
+                  {log.entityId && <span className="text-gray-400 ml-1 font-mono dark:text-gray-500">{log.entityId.slice(0, 8)}…</span>}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
+                <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-xs truncate">
                   {log.detail ? JSON.stringify(log.detail) : '—'}
                 </td>
               </tr>
@@ -118,7 +118,7 @@ export default function AdminAuditPage() {
             disabled={page <= 1}
             className="btn-secondary text-xs disabled:opacity-40"
           >← ก่อน</button>
-          <span className="text-sm text-gray-500 self-center">{page} / {totalPages}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 self-center">{page} / {totalPages}</span>
           <button
             onClick={() => { const p = Math.min(totalPages, page + 1); setPage(p); load(p) }}
             disabled={page >= totalPages}

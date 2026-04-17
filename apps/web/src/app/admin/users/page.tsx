@@ -108,7 +108,7 @@ export default function AdminUsersPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">จัดการผู้ใช้</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">จัดการผู้ใช้</h1>
         <button onClick={openCreate} className="btn-primary text-sm">+ สร้างผู้ใช้</button>
       </div>
 
@@ -123,8 +123,9 @@ export default function AdminUsersPage() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-            <tr>
+          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide
+          dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+            <tr className="border-b border-gray-100 dark:border-gray-700">
               <th className="px-4 py-3 text-left">Username</th>
               <th className="px-4 py-3 text-left">Email</th>
               <th className="px-4 py-3 text-left">Role</th>
@@ -133,21 +134,21 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">กำลังโหลด...</td></tr>}
-            {!loading && users.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">ไม่พบผู้ใช้</td></tr>}
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {loading && <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>}
+            {!loading && users.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">ไม่พบผู้ใช้</td></tr>}
             {users.map(u => (
-              <tr key={u.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-800">{u.username}</td>
-                <td className="px-4 py-3 text-gray-500">{u.email || '—'}</td>
+              <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-100">{u.username}</td>
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{u.email || '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                    u.role === 'admin'  ? 'bg-red-100 text-red-700' :
-                    u.role === 'editor' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-600'
+                    u.role === 'admin'  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                    u.role === 'editor' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                    'bg-gray-100 text-gray-600 dark:bg-gray-700/40 dark:text-gray-300'
                   }`}>{u.role}</span>
                 </td>
-                <td className="px-4 py-3 text-gray-500 text-xs">
+                <td className="px-4 py-3 text-gray-500 text-xs dark:text-gray-400">
                   {u.division?.name || u.department?.name || u.ministry?.name || '—'}
                 </td>
                 <td className="px-4 py-3 text-center">

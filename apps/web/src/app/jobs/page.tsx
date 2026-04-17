@@ -86,7 +86,7 @@ export default function JobsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">งานตรวจสอบ</h2>
+      <h2 className="text-2xl font-semibold text-gray-900 mb-6 dark:text-gray-100">งานตรวจสอบ</h2>
 
       {/* Queue stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -133,22 +133,22 @@ export default function JobsPage() {
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs">
-              <th className="px-4 py-3 font-medium text-gray-600">ประเภท</th>
-              <th className="px-4 py-3 font-medium text-gray-600">ชุดข้อมูล</th>
-              <th className="px-4 py-3 font-medium text-gray-600 text-center">สถานะ</th>
-              <th className="px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">ความคืบหน้า</th>
-              <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell">ผู้ดำเนินการ</th>
-              <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell">เวลา</th>
-              <th className="px-4 py-3 font-medium text-gray-600 w-24"></th>
+            <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs dark:bg-gray-800 dark:border-gray-700">
+              <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400">ประเภท</th>
+              <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400">ชุดข้อมูล</th>
+              <th className="px-4 py-3 font-medium text-gray-600 text-center dark:text-gray-400">สถานะ</th>
+              <th className="px-4 py-3 font-medium text-gray-600 hidden sm:table-cell dark:text-gray-400">ความคืบหน้า</th>
+              <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell dark:text-gray-400">ผู้ดำเนินการ</th>
+              <th className="px-4 py-3 font-medium text-gray-600 hidden md:table-cell dark:text-gray-400">เวลา</th>
+              <th className="px-4 py-3 font-medium text-gray-600 w-24 dark:text-gray-400"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
             {loading && (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">กำลังโหลด...</td></tr>
+              <tr><td colSpan={6} className="text-center py-10 text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>
             )}
             {!loading && jobs.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">ยังไม่มีงาน</td></tr>
+              <tr><td colSpan={6} className="text-center py-10 text-gray-400 dark:text-gray-500">ยังไม่มีงาน</td></tr>
             )}
             {jobs.map(j => {
               const progress = j.totalItems > 0 ? Math.round((j.doneItems / j.totalItems) * 100) : null
@@ -156,28 +156,28 @@ export default function JobsPage() {
                 ? Math.round((new Date(j.finishedAt).getTime() - new Date(j.startedAt).getTime()) / 1000)
                 : null
               return (
-                <tr key={j.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={j.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <td className="px-4 py-3">
-                    <span className="badge border-gray-200 text-gray-600 text-xs">
+                    <span className="badge border-gray-200 text-gray-600 text-xs dark:border-gray-700 dark:text-gray-400 dark:bg-gray-800">
                       {TYPE_LABEL[j.type] || j.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 truncate max-w-xs text-xs">
+                  <td className="px-4 py-3 text-gray-600 truncate max-w-xs text-xs dark:text-gray-400">
                     {j.dataset ? (j.dataset.title || j.dataset.name) : 'ทั้งหมด'}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`badge text-xs ${STATUS_COLOR[j.status] || 'text-gray-500 bg-gray-50 border-gray-200'}`}>
+                    <span className={`badge text-xs ${STATUS_COLOR[j.status] || 'text-gray-500 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700'}`}>
                       {STATUS_LABEL[j.status] || j.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     {j.totalItems > 0 ? (
                       <div>
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                           <span>{j.doneItems} / {j.totalItems}</span>
                           <span>{progress}%</span>
                         </div>
-                        <div className="bg-gray-100 rounded-full h-1.5">
+                        <div className="bg-gray-100 rounded-full h-1.5 dark:bg-gray-700">
                           <div
                             className="bg-blue-500 h-1.5 rounded-full transition-all"
                             style={{ width: `${progress}%` }}
@@ -198,12 +198,12 @@ export default function JobsPage() {
                         <span className="text-xs text-gray-600">{j.triggeredByUsername}</span>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">ระบบ</span>
+                      <span className="text-xs text-gray-300 dark:text-gray-500">ระบบ</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400 hidden md:table-cell">
                     <div>{new Date(j.createdAt).toLocaleString('th-TH')}</div>
-                    {duration !== null && <div className="text-gray-300">ใช้เวลา {duration}s</div>}
+                    {duration !== null && <div className="text-gray-300 dark:text-gray-500">ใช้เวลา {duration}s</div>}
                     {j.errorMsg && <div className="text-red-400 truncate max-w-40" title={j.errorMsg}>{j.errorMsg}</div>}
                   </td>
                   <td className="px-3 py-3">

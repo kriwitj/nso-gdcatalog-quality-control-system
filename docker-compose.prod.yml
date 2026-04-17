@@ -1,9 +1,8 @@
-version: '3.9'
+version: "3.9"
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ogd_postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -13,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/backup-db.sh:/backup-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +21,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ogd_redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
@@ -39,7 +37,6 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile.prod
-    container_name: ogd_web
     restart: always
     depends_on:
       postgres:
@@ -54,19 +51,23 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
+    command: sh -c "npx prisma migrate deploy && node server.js"
     networks:
       - internal
-      - external
-    command: sh -c "npx prisma migrate deploy && node server.js"
+      - proxy_net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy_net
+      - traefik.http.routers.supportdata.rule=Host(`supportdata.nso.go.th`)
+      - traefik.http.routers.supportdata.entrypoints=websecure
+      - traefik.http.routers.supportdata.tls=true
+      - traefik.http.services.supportdata.loadbalancer.server.port=3000
 
   worker:
     build:
       context: ./apps/worker
       dockerfile: Dockerfile
-    container_name: ogd_worker
     restart: always
-    deploy:
-      replicas: 2
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,22 +87,6 @@ services:
     networks:
       - internal
 
-  nginx:
-    image: nginx:alpine
-    container_name: ogd_nginx
-    restart: always
-    depends_on:
-      - web
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-      - ./nginx/logs:/var/log/nginx
-    networks:
-      - external
-
 volumes:
   pgdata:
   redisdata:
@@ -110,5 +95,5 @@ volumes:
 networks:
   internal:
     driver: bridge
-  external:
-    driver: bridge
+  proxy_net:
+    external: true

@@ -125,8 +125,8 @@ export default function DashboardPage() {
         ].map(c => (
           <div key={c.label} className="stat-card">
             <span className="text-2xl">{c.icon}</span>
-            <div className="text-2xl font-semibold text-gray-900">{c.value}</div>
-            <div className="text-xs text-gray-500">{c.label}</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{c.value}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">{c.label}</div>
           </div>
         ))}
       </div>
@@ -134,7 +134,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Grade distribution */}
         <div className="card p-5">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">การกระจายเกรดคุณภาพ</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">การกระจายเกรดคุณภาพ</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={s.gradeDistribution} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
         {/* Machine readable pie */}
         <div className="card p-5">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">Machine Readable Status</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Machine Readable Status</h3>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
 
         {/* Timeliness pie */}
         <div className="card p-5">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">Timeliness Status</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Timeliness Status</h3>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
@@ -199,19 +199,19 @@ export default function DashboardPage() {
 function DatasetRankCard({ title, datasets }: { title: string; datasets: Stats['topDatasets'] }) {
   return (
     <div className="card p-5">
-      <h3 className="text-sm font-medium text-gray-700 mb-4">{title}</h3>
+      <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">{title}</h3>
       <div className="space-y-3">
-        {datasets.length === 0 && <p className="text-sm text-gray-400 text-center py-4">ยังไม่มีข้อมูล</p>}
+        {datasets.length === 0 && <p className="text-sm text-gray-400 text-center py-4 dark:text-gray-500">ยังไม่มีข้อมูล</p>}
         {datasets.map(d => (
-          <Link href={`/datasets/${d.id}`} key={d.id} className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 -mx-2 transition-colors">
+          <Link href={`/datasets/${d.id}`} key={d.id} className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-2 -mx-2 transition-colors">
             <span className={`badge ${gradeColor(d.qualityGrade || '?')} text-sm font-semibold w-8 justify-center`}>
               {d.qualityGrade || '?'}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-800 truncate">{d.title || '-'}</div>
-              <div className="text-xs text-gray-400">{d.organization?.name || '-'}</div>
+              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{d.title || '-'}</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500">{d.organization?.name || '-'}</div>
             </div>
-            <div className="text-sm font-semibold text-gray-600 shrink-0">{fmt(d.overallScore)}</div>
+            <div className="text-sm font-semibold text-gray-600 dark:text-gray-400 shrink-0">{fmt(d.overallScore)}</div>
           </Link>
         ))}
       </div>

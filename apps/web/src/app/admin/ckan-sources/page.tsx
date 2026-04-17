@@ -97,14 +97,14 @@ export default function AdminCkanSourcesPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">จัดการ CKAN Sources</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">จัดการ CKAN Sources</h1>
         <button onClick={openCreate} className="btn-primary text-sm">+ เพิ่ม Source</button>
       </div>
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-            <tr>
+          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+            <tr className="border-b border-gray-100 dark:border-gray-700">
               <th className="px-4 py-3 text-left">ชื่อ</th>
               <th className="px-4 py-3 text-left">URL</th>
               <th className="px-4 py-3 text-left">ขอบเขต</th>
@@ -112,16 +112,16 @@ export default function AdminCkanSourcesPage() {
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">กำลังโหลด...</td></tr>}
-            {!loading && sources.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">ไม่พบ CKAN source</td></tr>}
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {loading && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>}
+            {!loading && sources.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 dark:text-gray-500">ไม่พบ CKAN source</td></tr>}
             {sources.map(s => (
-              <tr key={s.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-800">{s.name}</td>
-                <td className="px-4 py-3 text-gray-500 text-xs truncate max-w-xs">
+              <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-100">{s.name}</td>
+                <td className="px-4 py-3 text-gray-500 text-xs truncate max-w-xs dark:text-gray-400">
                   <a href={s.url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{s.url}</a>
                 </td>
-                <td className="px-4 py-3 text-gray-500 text-xs">
+                <td className="px-4 py-3 text-gray-500 text-xs dark:text-gray-400">
                   {s.division?.name || s.department?.name || s.ministry?.name || 'ทั้งระบบ'}
                 </td>
                 <td className="px-4 py-3 text-center">

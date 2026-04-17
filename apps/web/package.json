@@ -27,7 +27,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.12.2",
-    "tailwind-merge": "^2.2.1"
+    "tailwind-merge": "^2.2.1",
+    "next-themes": "^0.3.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

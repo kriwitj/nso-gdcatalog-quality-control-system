@@ -92,7 +92,7 @@ export default function AdminOrgPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">โครงสร้างองค์กร</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">โครงสร้างองค์กร</h1>
         <button
           onClick={() => startAdd('ministries', '')}
           className="btn-secondary text-sm"
@@ -103,7 +103,7 @@ export default function AdminOrgPage() {
 
       <div className="space-y-2 mt-4">
         {data.ministries.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-8">ยังไม่มีข้อมูลองค์กร — เริ่มต้นด้วยการเพิ่มกระทรวง</p>
+          <p className="text-sm text-gray-400 text-center py-8 dark:text-gray-500">ยังไม่มีข้อมูลองค์กร — เริ่มต้นด้วยการเพิ่มกระทรวง</p>
         )}
         {data.ministries.map(m => {
           const depts = data.departments.filter(d => d.ministryId === m.id)
@@ -114,14 +114,14 @@ export default function AdminOrgPage() {
                 <button onClick={() => toggle(m.id)} className="text-gray-400 w-4 text-center shrink-0">
                   {depts.length > 0 ? (isOpen ? '▾' : '▸') : '·'}
                 </button>
-                <span className="flex-1 font-medium text-gray-800 text-sm">{m.name}</span>
+                <span className="flex-1 font-medium text-gray-800 text-sm dark:text-gray-100">{m.name}</span>
                 <OrgBadge label="กระทรวง" />
                 <button onClick={() => startAdd('departments', m.id)} className="text-xs text-blue-500 hover:underline">+ กรม</button>
                 <button onClick={() => handleDelete('ministries', m.id, m.name)} className="text-xs text-red-400 hover:text-red-600">×</button>
               </div>
 
               {isOpen && (
-                <div className="border-t border-gray-100 pb-2 px-4">
+                <div className="border-t border-gray-100 dark:border-gray-700 pb-2 px-4">
                   {adding?.type === 'departments' && adding.parentId === m.id && (
                     <div className="mt-2"><AddForm type="departments" parentId={m.id} /></div>
                   )}
@@ -130,12 +130,12 @@ export default function AdminOrgPage() {
                       const divs = data.divisions.filter(d => d.departmentId === dept.id)
                       const deptOpen = expanded[dept.id]
                       return (
-                        <div key={dept.id} className="ml-4 border-l-2 border-gray-100 pl-3">
+                        <div key={dept.id} className="ml-4 border-l-2 border-gray-100 dark:border-gray-700 pl-3">
                           <div className="flex items-center gap-2 py-2">
                             <button onClick={() => toggle(dept.id)} className="text-gray-400 w-4 text-center shrink-0">
                               {divs.length > 0 ? (deptOpen ? '▾' : '▸') : '·'}
                             </button>
-                            <span className="flex-1 text-sm text-gray-700">{dept.name}</span>
+                            <span className="flex-1 text-sm text-gray-700 dark:text-gray-400">{dept.name}</span>
                             <OrgBadge label="กรม" color="purple" />
                             <button onClick={() => startAdd('divisions', dept.id)} className="text-xs text-blue-500 hover:underline">+ ศูนย์/กอง</button>
                             <button onClick={() => handleDelete('departments', dept.id, dept.name)} className="text-xs text-red-400 hover:text-red-600">×</button>
@@ -147,12 +147,12 @@ export default function AdminOrgPage() {
                             const grps = data.groups.filter(g => g.divisionId === div.id)
                             const divOpen = expanded[div.id]
                             return (
-                              <div key={div.id} className="ml-4 border-l-2 border-gray-100 pl-3">
+                              <div key={div.id} className="ml-4 border-l-2 border-gray-100 dark:border-gray-700 pl-3">
                                 <div className="flex items-center gap-2 py-1.5">
                                   <button onClick={() => toggle(div.id)} className="text-gray-400 w-4 text-center shrink-0">
                                     {grps.length > 0 ? (divOpen ? '▾' : '▸') : '·'}
                                   </button>
-                                  <span className="flex-1 text-sm text-gray-600">{div.name}</span>
+                                  <span className="flex-1 text-sm text-gray-600 dark:text-gray-400">{div.name}</span>
                                   <OrgBadge label="ศูนย์/กอง" color="green" />
                                   <button onClick={() => startAdd('groups', div.id)} className="text-xs text-blue-500 hover:underline">+ กลุ่ม</button>
                                   <button onClick={() => handleDelete('divisions', div.id, div.name)} className="text-xs text-red-400 hover:text-red-600">×</button>
@@ -162,8 +162,8 @@ export default function AdminOrgPage() {
                                 )}
                                 {divOpen && grps.map(g => (
                                   <div key={g.id} className="ml-8 flex items-center gap-2 py-1">
-                                    <span className="w-4 text-center text-gray-300">·</span>
-                                    <span className="flex-1 text-xs text-gray-500">{g.name}</span>
+                                    <span className="w-4 text-center text-gray-300 dark:text-gray-500">·</span>
+                                    <span className="flex-1 text-xs text-gray-500 dark:text-gray-400">{g.name}</span>
                                     <OrgBadge label="กลุ่ม" color="orange" />
                                     <button onClick={() => handleDelete('groups', g.id, g.name)} className="text-xs text-red-400 hover:text-red-600">×</button>
                                   </div>

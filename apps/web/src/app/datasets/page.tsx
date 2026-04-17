@@ -60,19 +60,51 @@ function ScoreCell({ value }: { value: number | null }) {
 // ─── Structured / Machine Readable badge ─────────────────────────
 
 function StructuredBadge({ status }: { status: string | null }) {
-  if (!status || status === 'unknown') return <span className="text-xs text-gray-300">—</span>
+  if (!status || status === 'unknown')
+    return <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+
   if (status === 'fully_machine_readable' || status === 'partially_machine_readable')
-    return <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs">Structured</span>
-  return <span className="badge text-red-600 bg-red-50 border-red-200 text-xs">Unstructured</span>
+    return (
+      <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs 
+        dark:text-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700">
+        Structured
+      </span>
+    )
+
+  return (
+    <span className="badge text-red-600 bg-red-50 border-red-200 text-xs 
+      dark:text-red-300 dark:bg-red-900/40 dark:border-red-700">
+      Unstructured
+    </span>
+  )
 }
 
 function MRBadge({ status }: { status: string | null }) {
-  if (!status || status === 'unknown') return <span className="text-xs text-gray-300">—</span>
+  if (!status || status === 'unknown')
+    return <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+
   if (status === 'fully_machine_readable')
-    return <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs">ทั้งหมด</span>
+    return (
+      <span className="badge text-emerald-700 bg-emerald-50 border-emerald-200 text-xs 
+        dark:text-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700">
+        ทั้งหมด
+      </span>
+    )
+
   if (status === 'partially_machine_readable')
-    return <span className="badge text-amber-700 bg-amber-50 border-amber-200 text-xs">บางส่วน</span>
-  return <span className="badge text-red-600 bg-red-50 border-red-200 text-xs">ไม่ได้</span>
+    return (
+      <span className="badge text-amber-700 bg-amber-50 border-amber-200 text-xs 
+        dark:text-amber-300 dark:bg-amber-900/40 dark:border-amber-700">
+        บางส่วน
+      </span>
+    )
+
+  return (
+    <span className="badge text-red-600 bg-red-50 border-red-200 text-xs 
+      dark:text-red-300 dark:bg-red-900/40 dark:border-red-700">
+        ไม่ได้
+    </span>
+  )
 }
 
 // ─── Sortable column header ────────────────────────────────────────
@@ -90,7 +122,7 @@ function SortTh({
   const isDesc   = sort === `${field}_desc`
   return (
     <th
-      className={`px-3 py-3 font-medium text-gray-600 cursor-pointer select-none whitespace-nowrap hover:bg-gray-100 transition-colors ${className}`}
+      className={`px-3 py-3 font-medium text-gray-600 cursor-pointer select-none whitespace-nowrap hover:bg-gray-100 transition-colors dark:text-gray-400 dark:hover:bg-gray-700 ${className}`}
       onClick={() => onSort(field)}
     >
       <span className="flex items-center gap-1 justify-center">
@@ -176,8 +208,8 @@ export default function DatasetsPage() {
     <div className="p-6 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">ชุดข้อมูลทั้งหมด</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">ชุดข้อมูลทั้งหมด</h2>
+          <p className="text-sm text-gray-500 mt-0.5 dark:text-gray-400">
             {pd ? `${pd.total.toLocaleString()} ชุดข้อมูล` : 'กำลังโหลด...'}
           </p>
         </div>
@@ -271,44 +303,45 @@ export default function DatasetsPage() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs">
-              <th className="text-left px-4 py-3 font-medium text-gray-600 min-w-48">ชุดข้อมูล</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell min-w-32">หน่วยงาน</th>
-              <SortTh field="machineReadableStatus" label="Structured"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
-              <SortTh field="machineReadableStatus" label="Machine Read." sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
-              <SortTh field="overallScore"         label="เกรด/รวม"  sort={sort} onSort={handleSort} className="text-center" />
-              <SortTh field="completenessScore"    label="ครบถ้วน"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
-              <SortTh field="timelinessScore"      label="ทันสมัย"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell" />
-              <SortTh field="accessibilityScore"   label="เข้าถึง"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell" />
-              <SortTh field="machineReadableScore" label="อ่านได้"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell" />
-              <SortTh field="validityScore"        label="ถูกต้อง"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell" />
-              <th className="text-center px-3 py-3 font-medium text-gray-600 hidden md:table-cell w-12">ไฟล์</th>
+            <tr className="bg-gray-50 border-b border-gray-200 text-xs
+            text-gray-600 uppercase tracking-wider dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400">
+              <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 min-w-48">ชุดข้อมูล</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 hidden md:table-cell min-w-32">หน่วยงาน</th>
+              <SortTh field="machineReadableStatus" label="Structured"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell dark:text-gray-400" />
+              <SortTh field="machineReadableStatus" label="Machine Read." sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell dark:text-gray-400" />
+              <SortTh field="overallScore"         label="เกรด/รวม"  sort={sort} onSort={handleSort} className="text-center dark:text-gray-400" />
+              <SortTh field="completenessScore"    label="ครบถ้วน"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell dark:text-gray-400" />
+              <SortTh field="timelinessScore"      label="ทันสมัย"   sort={sort} onSort={handleSort} className="text-center hidden lg:table-cell dark:text-gray-400" />
+              <SortTh field="accessibilityScore"   label="เข้าถึง"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell dark:text-gray-400" />
+              <SortTh field="machineReadableScore" label="อ่านได้"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell dark:text-gray-400" />
+              <SortTh field="validityScore"        label="ถูกต้อง"   sort={sort} onSort={handleSort} className="text-center hidden xl:table-cell dark:text-gray-400" />
+              <th className="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 hidden md:table-cell w-12">ไฟล์</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {!pd && (
-              <tr><td colSpan={11} className="text-center py-12 text-gray-400">กำลังโหลด...</td></tr>
+              <tr><td colSpan={11} className="text-center py-12 text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>
             )}
             {pd?.data.length === 0 && (
-              <tr><td colSpan={11} className="text-center py-12 text-gray-400">ไม่พบชุดข้อมูล</td></tr>
+              <tr><td colSpan={11} className="text-center py-12 text-gray-400 dark:text-gray-500">ไม่พบชุดข้อมูล</td></tr>
             )}
             {pd?.data.map(d => (
-              <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <td className="px-4 py-3">
-                  <Link href={`/datasets/${d.id}`} className="font-medium text-blue-600 hover:underline line-clamp-2 max-w-xs block">
+                  <Link href={`/datasets/${d.id}`} className="font-medium text-blue-600 hover:underline line-clamp-2 max-w-xs block dark:text-blue-400">
                     {d.title || d.name}
                   </Link>
-                  <div className="text-xs text-gray-400 mt-0.5 md:hidden">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 md:hidden">
                     {d.organization?.title || d.organization?.name || '—'}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-500 hidden md:table-cell text-xs truncate max-w-36">
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell text-xs truncate max-w-36">
                   {d.organization?.title || d.organization?.name || '—'}
                 </td>
-                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                <td className="px-3 py-3 text-center hidden lg:table-cell dark:text-gray-400">
                   <StructuredBadge status={d.machineReadableStatus} />
                 </td>
-                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                <td className="px-3 py-3 text-center hidden lg:table-cell dark:text-gray-400">
                   <MRBadge status={d.machineReadableStatus} />
                 </td>
                 {/* Grade + overall */}
@@ -320,22 +353,22 @@ export default function DatasetsPage() {
                     <span className="text-xs tabular-nums text-gray-500">{fmt(d.overallScore, 0)}</span>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                <td className="px-3 py-3 text-center hidden lg:table-cell dark:text-gray-400">
                   <ScoreCell value={d.completenessScore} />
                 </td>
-                <td className="px-3 py-3 text-center hidden lg:table-cell">
+                <td className="px-3 py-3 text-center hidden lg:table-cell dark:text-gray-400">
                   <ScoreCell value={d.timelinessScore} />
                 </td>
-                <td className="px-3 py-3 text-center hidden xl:table-cell">
+                <td className="px-3 py-3 text-center hidden xl:table-cell dark:text-gray-400">
                   <ScoreCell value={d.accessibilityScore} />
                 </td>
-                <td className="px-3 py-3 text-center hidden xl:table-cell">
+                <td className="px-3 py-3 text-center hidden xl:table-cell dark:text-gray-400">
                   <ScoreCell value={d.machineReadableScore} />
                 </td>
-                <td className="px-3 py-3 text-center hidden xl:table-cell">
+                <td className="px-3 py-3 text-center hidden xl:table-cell dark:text-gray-400">
                   <ScoreCell value={d.validityScore} />
                 </td>
-                <td className="px-3 py-3 text-center text-gray-500 hidden md:table-cell text-xs">
+                <td className="px-3 py-3 text-center text-gray-500 hidden md:table-cell text-xs dark:text-gray-400">
                   {d.resourceCount}
                 </td>
               </tr>
@@ -345,7 +378,7 @@ export default function DatasetsPage() {
       </div>
 
       {/* Score legend */}
-      <div className="flex gap-4 mt-3 text-xs text-gray-400">
+      <div className="flex gap-4 mt-3 text-xs text-gray-400 dark:text-gray-500">
         <span className="text-green-600 font-medium">■</span> ≥80
         <span className="text-yellow-600 font-medium">■</span> 60–79
         <span className="text-red-500 font-medium">■</span> &lt;60
