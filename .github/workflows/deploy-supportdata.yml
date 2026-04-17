@@ -21,9 +21,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Fix deploy directory ownership
-        run: sudo chown -R $USER:$USER /opt/apps/nso-gdcatalog-quality-control-system
-
       - name: Sync source to deploy directory
         run: |
           rsync -a --delete \
