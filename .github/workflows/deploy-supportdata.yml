@@ -21,15 +21,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Fix git safe directory
+      - name: Sync source to deploy directory
         run: |
-          git config --global --add safe.directory /opt/apps/nso-gdcatalog-quality-control-system
-
-      - name: Update deployed source
-        run: |
-          cd /opt/apps/nso-gdcatalog-quality-control-system
-          git fetch origin
-          git reset --hard origin/main
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='node_modules/' \
+            --exclude='.next/' \
+            --exclude='.env' \
+            ${{ github.workspace }}/ /opt/apps/nso-gdcatalog-quality-control-system/
 
       - name: Write .env file
         run: |
