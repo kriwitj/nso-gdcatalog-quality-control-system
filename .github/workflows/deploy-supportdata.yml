@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Fix git safe directory
+        run: |
+          git config --global --add safe.directory /opt/apps/nso-gdcatalog-quality-control-system
 
       - name: Update deployed source
         run: |
