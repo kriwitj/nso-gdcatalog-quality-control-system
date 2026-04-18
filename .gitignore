@@ -19,3 +19,4 @@ coverage/
 test-results/
 __pycache__/
 *.pyc
+SECURITY_REPORT.md
