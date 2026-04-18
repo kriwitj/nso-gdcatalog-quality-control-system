@@ -60,6 +60,10 @@ services:
       CKAN_BASE_URL: ${CKAN_BASE_URL}
       CKAN_API_KEY: ${CKAN_API_KEY}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-changeme_access_secret_32chars_here}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-changeme_refresh_secret_32chars_here}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: 1
       PORT: 3000
