@@ -161,7 +161,7 @@ export default function DashboardPage() {
           <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Machine Readable Status</h3>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
-              <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                 {s.machineReadableDistribution.map(d => (
                   <Cell key={d.status} fill={MR_COLORS[d.status] || '#9ca3af'} />
                 ))}
@@ -176,7 +176,7 @@ export default function DashboardPage() {
           <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Timeliness Status</h3>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
-              <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                 {s.timelinessDistribution.map((d, i) => (
                   <Cell key={d.status} fill={['#10b981', '#f59e0b', '#ef4444', '#9ca3af'][i % 4]} />
                 ))}

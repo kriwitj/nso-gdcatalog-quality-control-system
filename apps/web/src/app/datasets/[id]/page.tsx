@@ -117,8 +117,8 @@ export default function DatasetDetailPage() {
 
   if (error) return (
     <div className="p-8 max-w-3xl mx-auto">
-      <Link href="/datasets" className="text-sm text-gray-400 hover:text-gray-600">← ชุดข้อมูล</Link>
-      <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+      <Link href="/datasets" className="text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">← ชุดข้อมูล</Link>
+      <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
         <div className="font-medium mb-1">เกิดข้อผิดพลาด</div>
         <div className="font-mono text-xs whitespace-pre-wrap">{error}</div>
       </div>
@@ -136,10 +136,10 @@ export default function DatasetDetailPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-        <Link href="/datasets" className="hover:text-gray-600">ชุดข้อมูล</Link>
+      <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-6">
+        <Link href="/datasets" className="hover:text-gray-600 dark:hover:text-gray-300">ชุดข้อมูล</Link>
         <span>/</span>
-        <span className="text-gray-600 truncate">{data.title || data.name}</span>
+        <span className="text-gray-600 dark:text-gray-300 truncate">{data.title || data.name}</span>
       </div>
 
       <div className="flex items-start justify-between gap-4 mb-8">
@@ -148,18 +148,18 @@ export default function DatasetDetailPage() {
             <span className={`badge ${gradeColor(data.qualityGrade || '?')} text-lg font-bold px-3 py-1`}>
               {data.qualityGrade || '?'}
             </span>
-            <h2 className="text-xl font-semibold text-gray-900">{data.title || data.name}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{data.title || data.name}</h2>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
             <span>🏛 {data.organization?.title || data.organization?.name || 'ไม่ระบุ'}</span>
             <span>📄 {data.resourceCount} ไฟล์</span>
             {data.updateFrequency && <span>🔄 {data.updateFrequency}</span>}
             {data.lastScanAt && <span>🕐 ตรวจ: {safeDate(data.lastScanAt)}</span>}
           </div>
-          {data.notes && <p className="mt-3 text-sm text-gray-600 max-w-3xl line-clamp-3">{data.notes}</p>}
+          {data.notes && <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 max-w-3xl line-clamp-3">{data.notes}</p>}
           {(data.tags?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
-              {data.tags.map(t => <span key={t} className="badge border-gray-200 text-gray-500">{t}</span>)}
+              {data.tags.map(t => <span key={t} className="badge border-gray-200 text-gray-500 dark:border-gray-600 dark:text-gray-400">{t}</span>)}
             </div>
           )}
         </div>
@@ -187,30 +187,30 @@ export default function DatasetDetailPage() {
       {msg && (
         <div className={`mb-6 p-3 rounded-lg text-sm border ${
           msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : 'bg-blue-50 border-blue-200 text-blue-800'
+            ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
+            : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
         }`}>{msg}</div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 card p-5">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">คะแนนแต่ละมิติ</h3>
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">คะแนนแต่ละมิติ</h3>
           <div className="space-y-4">
             {Object.keys(SCORE_LABELS).map(k => {
               const score = (data[k as keyof DatasetDetail] as number | null) ?? null
               return (
                 <div key={k}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">{SCORE_LABELS[k]} <span className="text-gray-400 text-xs">(น้ำหนัก {SCORE_WEIGHTS[k]}%)</span></span>
-                    <span className="font-medium">{fmt(score)} / 100</span>
+                    <span className="text-gray-600 dark:text-gray-400">{SCORE_LABELS[k]} <span className="text-gray-400 dark:text-gray-500 text-xs">(น้ำหนัก {SCORE_WEIGHTS[k]}%)</span></span>
+                    <span className="font-medium dark:text-gray-200">{fmt(score)} / 100</span>
                   </div>
-                  <div className="bg-gray-100 rounded-full h-2">
+                  <div className="bg-gray-100 dark:bg-gray-700 rounded-full h-2">
                     <div className={`score-bar ${scoreBarColor(score)}`} style={{ width: `${score ?? 0}%` }} />
                   </div>
                 </div>
               )
             })}
-            <div className="border-t border-gray-100 pt-3 flex justify-between text-sm font-semibold">
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between text-sm font-semibold dark:text-gray-200">
               <span>คะแนนรวม</span>
               <span className="text-lg">{fmt(data.overallScore)} / 100</span>
             </div>
@@ -219,7 +219,7 @@ export default function DatasetDetailPage() {
 
         <div className="space-y-4">
           <div className="card p-5">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Radar Score</h3>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Radar Score</h3>
             <ResponsiveContainer width="100%" height={160}>
               <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
                 <PolarGrid />
@@ -230,7 +230,7 @@ export default function DatasetDetailPage() {
           </div>
           {historyData.length > 1 && (
             <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">ประวัติคะแนน</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ประวัติคะแนน</h3>
               <ResponsiveContainer width="100%" height={100}>
                 <LineChart data={historyData} margin={{ top: 5, right: 5, bottom: 5, left: -30 }}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -245,8 +245,8 @@ export default function DatasetDetailPage() {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-medium text-gray-700">ทรัพยากร ({data.resources.length})</h3>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">ทรัพยากร ({data.resources.length})</h3>
         </div>
         {data.resources.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">ไม่มีทรัพยากรในชุดข้อมูลนี้</div>
@@ -254,18 +254,18 @@ export default function DatasetDetailPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-left">
-                  <th className="px-4 py-3 font-medium text-gray-600">ชื่อไฟล์</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Format</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">HTTP</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">Timeliness</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">Structured</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">Machine Read.</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">Validity</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 text-center">แถว</th>
+                <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700 text-left">
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400">ชื่อไฟล์</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Format</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">HTTP</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">Timeliness</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">Structured</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">Machine Read.</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">Validity</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-gray-400 text-center">แถว</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {data.resources.map(r => {
                   const c = r.latestCheck
                   // validity badge: ใช้ validityReport.severity ถ้ามี, fallback ดู isValid
@@ -279,15 +279,15 @@ export default function DatasetDetailPage() {
                     return <span className="text-gray-300">-</span>
                   }
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-4 py-3">
                         <Link href={`/resources/${r.id}`} className="text-blue-600 hover:underline font-medium truncate block max-w-xs">
                           {r.name || r.url?.split('/').pop() || r.id}
                         </Link>
-                        {r.url && <div className="text-xs text-gray-400 truncate max-w-xs mt-0.5">{r.url}</div>}
+                        {r.url && <div className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-xs mt-0.5">{r.url}</div>}
                       </td>
                       <td className="px-4 py-3">
-                        {r.format && <span className="badge border-gray-200 text-gray-600">{r.format}</span>}
+                        {r.format && <span className="badge border-gray-200 text-gray-600 dark:border-gray-600 dark:text-gray-400">{r.format}</span>}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {c?.httpStatus
@@ -309,7 +309,7 @@ export default function DatasetDetailPage() {
                            : <span className="text-gray-300">-</span>}
                       </td>
                       <td className="px-4 py-3 text-center">{validityBadge()}</td>
-                      <td className="px-4 py-3 text-center text-gray-500">
+                      <td className="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
                         {c?.rowCount?.toLocaleString() ?? '-'}
                       </td>
                     </tr>

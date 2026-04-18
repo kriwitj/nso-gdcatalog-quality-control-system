@@ -15,3 +15,7 @@ Thumbs.db
 .idea/
 # Ignore next.js build output
 .next/
+coverage/
+test-results/
+__pycache__/
+*.pyc

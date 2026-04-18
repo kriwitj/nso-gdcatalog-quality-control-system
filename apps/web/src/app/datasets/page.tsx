@@ -318,7 +318,7 @@ export default function DatasetsPage() {
               <th className="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 hidden md:table-cell w-12">ไฟล์</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {!pd && (
               <tr><td colSpan={11} className="text-center py-12 text-gray-400 dark:text-gray-500">กำลังโหลด...</td></tr>
             )}
@@ -394,7 +394,7 @@ export default function DatasetsPage() {
             disabled={page === 1}
             onClick={() => { const p = page - 1; setPage(p); loadData({ page: p }) }}
           >← ก่อน</button>
-          <span className="text-sm text-gray-600">หน้า {page} / {totalPages}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">หน้า {page} / {totalPages}</span>
           <button
             className="btn-secondary text-xs"
             disabled={page === totalPages}

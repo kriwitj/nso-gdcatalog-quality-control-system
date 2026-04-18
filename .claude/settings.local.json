@@ -6,7 +6,17 @@
       "Bash(npm run *)",
       "Bash(npm install:*)",
       "Bash(npx prisma:*)",
-      "Bash(DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" npx prisma generate)"
+      "Bash(DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" npx prisma generate)",
+      "Bash(npx jest *)",
+      "Bash(npx eslint *)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pip install *)",
+      "Bash(npm audit *)",
+      "Bash(npx playwright *)",
+      "Bash(npm view *)",
+      "Bash(node -e \"const v=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); const stable=v.filter\\(x=>!x.includes\\('beta'\\)&&!x.includes\\('canary'\\)&&!x.includes\\('rc'\\)&&!x.includes\\('alpha'\\)\\); console.log\\('Latest 10 stable:', stable.slice\\(-10\\).join\\(', '\\)\\)\")",
+      "Bash(npm outdated *)",
+      "Bash(npx next *)"
     ]
   }
 }

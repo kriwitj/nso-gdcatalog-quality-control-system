@@ -17,11 +17,12 @@ function sanitize(obj: unknown): unknown {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const resource = await prisma.resource.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         dataset: { select: { id: true, title: true, name: true } },
         checks: {

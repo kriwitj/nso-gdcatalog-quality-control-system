@@ -19,11 +19,12 @@ function sanitize(obj: unknown): unknown {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const dataset = await prisma.dataset.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: true,
         ckanSource: { select: { id: true, name: true, url: true } },
@@ -57,9 +58,6 @@ export async function GET(
     return NextResponse.json(sanitize({ ...dataset, resources }))
   } catch (err) {
     console.error('[api/datasets/id]', err)
-    return NextResponse.json(
-      { error: 'Internal server error', detail: String(err) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error', detail: String(err) }, { status: 500 })
   }
 }
