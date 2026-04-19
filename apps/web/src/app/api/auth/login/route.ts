@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPassword, signAccessToken, signRefreshToken } from "@/lib/auth";
+import { checkRateLimit, RateLimitError } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 วัน
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    await checkRateLimit(`login:${ip}`, 10, 15 * 60);
+
     const body = await req.json();
     const { username, password } = body as {
       username?: string;
@@ -65,6 +69,12 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: "พยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่" },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSec) } },
+      );
+    }
     console.error("LOGIN_ERROR", error);
     return NextResponse.json(
       { error: "เกิดข้อผิดพลาดภายในระบบ" },

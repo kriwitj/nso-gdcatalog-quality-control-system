@@ -58,6 +58,6 @@ export async function GET(
     return NextResponse.json(sanitize({ ...dataset, resources }))
   } catch (err) {
     console.error('[api/datasets/id]', err)
-    return NextResponse.json({ error: 'Internal server error', detail: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth } from '@/lib/withAuth'
 import { logAudit } from '@/lib/audit'
+import { encryptField } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export const PATCH = withAuth(async (req: NextRequest, { params, user: caller })
   if (name     !== undefined) data.name     = name
   if (url      !== undefined) data.url      = url
   if (isActive !== undefined) data.isActive  = isActive
-  if ('apiKey'      in body) data.apiKey      = apiKey      ?? null
+  if ('apiKey'      in body) data.apiKey      = apiKey ? encryptField(apiKey) : null
   if ('ministryId'  in body) data.ministryId  = ministryId  ?? null
   if ('departmentId' in body) data.departmentId = departmentId ?? null
   if ('divisionId'  in body) data.divisionId  = divisionId  ?? null

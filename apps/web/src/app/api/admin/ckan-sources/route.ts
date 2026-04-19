@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth } from '@/lib/withAuth'
 import { logAudit } from '@/lib/audit'
+import { encryptField } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,7 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
   const source = await prisma.ckanSource.create({
     data: {
       name, url,
-      apiKey:      apiKey      || null,
+      apiKey:      apiKey ? encryptField(apiKey) : null,
       isActive,
       ministryId:  ministryId  || null,
       departmentId: departmentId || null,

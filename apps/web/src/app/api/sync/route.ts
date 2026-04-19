@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { fetchAllPackages } from '@/lib/ckan'
 import { withAuth } from '@/lib/withAuth'
 import { Prisma } from '@prisma/client'
+import { tryDecryptField } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +57,8 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
   }
 
   const syncTargets = sources.map(s => ({
-    id: s.id, name: s.name, url: s.url, apiKey: s.apiKey ?? undefined,
+    id: s.id, name: s.name, url: s.url,
+    apiKey: tryDecryptField(s.apiKey) ?? undefined,
   }))
 
   const job = await prisma.scanJob.create({
@@ -84,19 +86,15 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
   })
 }, ['admin', 'editor'])
 
-// GET /api/sync — สาธารณะ (แสดงจำนวนข้อมูลใน DB)
-export async function GET() {
-  const [datasets, organizations, resources, ckanSources] = await Promise.all([
+// GET /api/sync — แสดงจำนวนข้อมูลใน DB (ต้อง login)
+export const GET = withAuth(async () => {
+  const [datasets, organizations, resources] = await Promise.all([
     prisma.dataset.count(),
     prisma.organization.count(),
     prisma.resource.count(),
-    prisma.ckanSource.findMany({
-      select: { id: true, name: true, url: true, isActive: true },
-      orderBy: { createdAt: 'asc' },
-    }),
   ])
-  return NextResponse.json({ datasets, organizations, resources, ckanSources })
-}
+  return NextResponse.json({ datasets, organizations, resources })
+})
 
 // ─── Sync logic ───────────────────────────────────────────────────
 

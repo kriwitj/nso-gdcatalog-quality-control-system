@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { extractBearerToken, verifyAccessToken, verifyPassword, hashPassword } from '@/lib/auth'
+import { extractBearerToken, verifyAccessToken, verifyPassword, hashPassword, blacklistToken } from '@/lib/auth'
+import { checkRateLimit, RateLimitError } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,12 +12,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
     }
 
-    let payload: { userId: string }
+    let payload: ReturnType<typeof verifyAccessToken>
     try {
       payload = verifyAccessToken(token)
     } catch {
       return NextResponse.json({ error: 'token ไม่ถูกต้องหรือหมดอายุ' }, { status: 401 })
     }
+
+    await checkRateLimit(`change-password:${payload.userId}`, 5, 15 * 60)
 
     const body = await req.json()
     const { currentPassword, newPassword } = body as {
@@ -49,14 +52,22 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashPassword(newPassword)
     await prisma.$transaction([
-      // อัปเดตรหัสผ่าน
       prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
       // เพิกถอน refresh token ทั้งหมด (บังคับ login ใหม่ทุก device)
       prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
     ])
 
+    // เพิกถอน access token ปัจจุบันทันที (ก่อนหมดอายุ 15 นาที)
+    await blacklistToken(payload)
+
     return NextResponse.json({ message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว กรุณาเข้าสู่ระบบใหม่' })
-  } catch {
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'พยายามเปลี่ยนรหัสผ่านมากเกินไป กรุณารอสักครู่' },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSec) } },
+      )
+    }
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 })
   }
 }

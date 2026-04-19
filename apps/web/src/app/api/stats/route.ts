@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyAccessToken } from '@/lib/auth'
 import { Prisma } from '@prisma/client'
+import { tryDecryptField } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,7 +77,8 @@ async function fetchOrganizationCountFromCkan(
         const headers: Record<string, string> = {
           'User-Agent': 'OGD-Quality-System/1.0',
         }
-        if (s.apiKey) headers['Authorization'] = s.apiKey
+        const decryptedKey = tryDecryptField(s.apiKey)
+        if (decryptedKey) headers['Authorization'] = decryptedKey
 
         const res = await fetch(url, {
           headers,

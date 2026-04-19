@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyRefreshToken, signAccessToken, signRefreshToken } from '@/lib/auth'
+import { checkRateLimit, RateLimitError } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,9 @@ const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 วัน
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    await checkRateLimit(`refresh:${ip}`, 30, 15 * 60)
+
     const oldToken = req.cookies.get('refresh_token')?.value
     if (!oldToken) {
       return NextResponse.json({ error: 'ไม่พบ refresh token' }, { status: 401 })
@@ -57,7 +61,13 @@ export async function POST(req: NextRequest) {
     })
 
     return res
-  } catch {
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'พยายาม refresh token มากเกินไป กรุณารอสักครู่' },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSec) } },
+      )
+    }
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }, { status: 500 })
   }
 }

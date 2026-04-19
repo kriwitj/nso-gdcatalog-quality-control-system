@@ -20,3 +20,7 @@ test-results/
 __pycache__/
 *.pyc
 SECURITY_REPORT.md
+# Personal Claude preferences
+CLAUDE.local.md
+# ถ้ามี memory folder
+.claude/memory/local/

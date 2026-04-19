@@ -1,5 +1,6 @@
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'crypto'
 import { NextRequest } from 'next/server'
 
 const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET!
@@ -10,6 +11,7 @@ const REFRESH_EXP    = (process.env.JWT_REFRESH_EXPIRES_IN || '7d')  as jwt.Sign
 export interface AccessTokenPayload extends JwtPayload {
   userId: string
   role:   string
+  jti:    string
 }
 
 export interface RefreshTokenPayload extends JwtPayload {
@@ -29,7 +31,7 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
 // ─── Token signing ────────────────────────────────────────────────
 
 export function signAccessToken(payload: Pick<AccessTokenPayload, 'userId' | 'role'>): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXP })
+  return jwt.sign({ ...payload, jti: randomUUID() }, ACCESS_SECRET, { expiresIn: ACCESS_EXP })
 }
 
 export function signRefreshToken(payload: Pick<RefreshTokenPayload, 'userId'>): string {
@@ -48,6 +50,26 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
   const payload = jwt.verify(token, REFRESH_SECRET)
   if (typeof payload === 'string') throw new Error('Invalid token')
   return payload as RefreshTokenPayload
+}
+
+// ─── Token blacklist (Redis) ──────────────────────────────────────
+
+const BLACKLIST_PREFIX = 'ogd:blacklist:'
+
+/** เพิกถอน access token โดยเก็บ jti ใน Redis จนกว่า token จะหมดอายุ */
+export async function blacklistToken(payload: AccessTokenPayload): Promise<void> {
+  const { getRedis } = await import('./queue')
+  const now = Math.floor(Date.now() / 1000)
+  const ttl = (payload.exp ?? now + 900) - now
+  if (ttl > 0) {
+    await getRedis().set(`${BLACKLIST_PREFIX}${payload.jti}`, '1', 'EX', ttl)
+  }
+}
+
+/** ตรวจสอบว่า token ถูกเพิกถอนแล้วหรือไม่ */
+export async function isTokenBlacklisted(jti: string): Promise<boolean> {
+  const { getRedis } = await import('./queue')
+  return (await getRedis().exists(`${BLACKLIST_PREFIX}${jti}`)) === 1
 }
 
 // ─── Request helpers ──────────────────────────────────────────────

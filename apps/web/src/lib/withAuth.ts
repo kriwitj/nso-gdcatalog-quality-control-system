@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { extractBearerToken, verifyAccessToken, AccessTokenPayload } from './auth'
+import { extractBearerToken, verifyAccessToken, isTokenBlacklisted, AccessTokenPayload } from './auth'
 
 export type AuthedContext<P extends Record<string, string> = Record<string, string>> = {
   params: P
@@ -28,6 +28,10 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
       user = verifyAccessToken(token)
     } catch {
       return NextResponse.json({ error: 'token ไม่ถูกต้องหรือหมดอายุ' }, { status: 401 })
+    }
+
+    if (user.jti && await isTokenBlacklisted(user.jti)) {
+      return NextResponse.json({ error: 'token ถูกเพิกถอนแล้ว กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
     }
 
     if (roles && !roles.includes(user.role)) {
