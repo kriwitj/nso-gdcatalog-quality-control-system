@@ -14,7 +14,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       .then(async (res) => {
         if (!res.ok) { router.push('/login'); return }
         const data = await res.json()
-        if (data.role !== 'admin') { router.push('/dashboard'); return }
+        if (data.user?.role !== 'admin') { router.push('/dashboard'); return }
         setAuthorized(true)
       })
       .catch(() => router.push('/login'))
