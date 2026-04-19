@@ -159,31 +159,68 @@ export default function DashboardPage() {
         {/* Machine readable pie */}
         <div className="card p-5">
           <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Machine Readable Status</h3>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={160}>
             <PieChart>
-              <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={s.machineReadableDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70}>
                 {s.machineReadableDistribution.map(d => (
                   <Cell key={d.status} fill={MR_COLORS[d.status] || '#9ca3af'} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v, n) => [`${v}`, n]} />
+              <Tooltip formatter={(v, n) => [`${v} ชุดข้อมูล`, n]} />
             </PieChart>
           </ResponsiveContainer>
+          <div className="mt-3 space-y-1">
+            {s.machineReadableDistribution.map(d => {
+              const total = s.machineReadableDistribution.reduce((a, b) => a + b.count, 0)
+              const pct = total > 0 ? ((d.count / total) * 100).toFixed(0) : '0'
+              return (
+                <div key={d.status} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MR_COLORS[d.status] || '#9ca3af' }} />
+                    <span className="text-gray-600 dark:text-gray-400 truncate">{d.label}</span>
+                  </div>
+                  <span className="text-gray-500 dark:text-gray-500 shrink-0 ml-2">{d.count} ({pct}%)</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Timeliness pie */}
         <div className="card p-5">
           <h3 className="text-sm font-medium text-gray-700 mb-4 dark:text-gray-200">Timeliness Status</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
-                {s.timelinessDistribution.map((d, i) => (
-                  <Cell key={d.status} fill={['#10b981', '#f59e0b', '#ef4444', '#9ca3af'][i % 4]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {(() => {
+            const TL_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#9ca3af']
+            return (
+              <>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie data={s.timelinessDistribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={70}>
+                      {s.timelinessDistribution.map((d, i) => (
+                        <Cell key={d.status} fill={TL_COLORS[i % 4]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v, n) => [`${v} ชุดข้อมูล`, n]} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-3 space-y-1">
+                  {s.timelinessDistribution.map((d, i) => {
+                    const total = s.timelinessDistribution.reduce((a, b) => a + b.count, 0)
+                    const pct = total > 0 ? ((d.count / total) * 100).toFixed(0) : '0'
+                    return (
+                      <div key={d.status} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TL_COLORS[i % 4] }} />
+                          <span className="text-gray-600 dark:text-gray-400 truncate">{d.label}</span>
+                        </div>
+                        <span className="text-gray-500 dark:text-gray-500 shrink-0 ml-2">{d.count} ({pct}%)</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )
+          })()}
         </div>
       </div>
 
