@@ -14,6 +14,7 @@
 - [Library Files](#library-files)
 - [Database Schema](#database-schema)
 - [Authentication & RBAC](#authentication--rbac)
+- [Export CSV/XLSX](#export-csvxlsx)
 - [Docker & Deployment](#docker--deployment)
 - [Environment Variables](#environment-variables)
 
@@ -49,6 +50,7 @@ CKAN API → [Collector] → PostgreSQL → [Analyzer Worker] → [Dashboard]
 | Language | TypeScript | 5.3 |
 | Styling | Tailwind CSS | 3.4 |
 | Charts | Recharts | 3.x |
+| Export | SheetJS (xlsx) | 0.18.x |
 | ORM | Prisma | 7.0 |
 | DB Driver | @prisma/adapter-pg (pg) | 7.0 / 8.x |
 | Database | PostgreSQL | 16 |
@@ -71,7 +73,10 @@ ogd-quality-windows/
 │   │   │   ├── app/
 │   │   │   │   ├── api/             # API Route Handlers
 │   │   │   │   │   ├── auth/        # login, refresh, logout, me, change-password
-│   │   │   │   │   ├── datasets/    # list + detail
+│   │   │   │   │   ├── datasets/    # list + detail + export
+│   │   │   │   │   │   ├── route.ts          # GET /api/datasets (paginated)
+│   │   │   │   │   │   ├── [id]/route.ts     # GET /api/datasets/:id
+│   │   │   │   │   │   └── export/route.ts   # GET /api/datasets/export (no pagination)
 │   │   │   │   │   ├── resources/   # detail + recent checks
 │   │   │   │   │   ├── jobs/        # scan job tracking + queue status
 │   │   │   │   │   ├── stats/       # dashboard statistics
@@ -80,8 +85,8 @@ ogd-quality-windows/
 │   │   │   │   │   ├── orgs/        # organization list
 │   │   │   │   │   └── admin/       # users, ckan-sources, org hierarchy, audit
 │   │   │   │   ├── dashboard/       # ภาพรวม (charts + stats)
-│   │   │   │   ├── datasets/        # list + [id] detail
-│   │   │   │   ├── resources/       # [id] detail
+│   │   │   │   ├── datasets/        # list + [id] detail (ปุ่ม export CSV/XLSX)
+│   │   │   │   ├── resources/       # [id] detail (ปุ่ม export CSV/XLSX)
 │   │   │   │   ├── jobs/            # scan job status
 │   │   │   │   ├── settings/        # user account settings
 │   │   │   │   ├── admin/           # users, ckan-sources, org, audit
@@ -97,18 +102,26 @@ ogd-quality-windows/
 │   │   │       ├── ckan.ts          # CKAN API client
 │   │   │       ├── queue.ts         # Redis queue operations
 │   │   │       ├── scoring.ts       # Grade/color/label formatters
-│   │   │       └── audit.ts         # Audit log helper
+│   │   │       ├── audit.ts         # Audit log helper
+│   │   │       └── downloadFile.ts  # CSV / XLSX export utilities (SheetJS)
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma        # Data models
 │   │   │   └── seed.ts              # Initial data seed
 │   │   ├── prisma.config.ts         # Prisma v7 config (datasource URL)
-│   │   ├── Dockerfile.prod          # Multi-stage Docker build
+│   │   ├── .dockerignore            # exclude .next, node_modules, .swc
+│   │   ├── .npmrc                   # legacy-peer-deps=true
+│   │   ├── Dockerfile               # Dev Dockerfile
+│   │   ├── Dockerfile.prod          # Multi-stage production build
 │   │   └── tailwind.config.ts       # darkMode: 'class'
 │   └── worker/                      # Python quality checker
 │       └── Dockerfile.prod
+├── docker-compose.yml               # Development stack
+├── docker-compose.windows.yml       # Windows override
 ├── docker-compose.prod.yml          # Production stack
 ├── .github/workflows/
 │   └── deploy-supportdata.yml       # GitHub Actions CI/CD
+├── README.md                        # คู่มือภาพรวม
+├── README-WINDOWS.md                # คู่มือ Windows dev
 └── AGENTS.md                        # This file
 ```
 
@@ -121,7 +134,7 @@ ogd-quality-windows/
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/auth/login` | — | Login → accessToken + refresh_token cookie |
-| POST | `/api/auth/refresh` | cookie | รับ accessToken ใหม่ |
+| POST | `/api/auth/refresh` | cookie | รับ accessToken ใหม่ (token rotation) |
 | POST | `/api/auth/logout` | — | ลบ refresh token |
 | GET | `/api/auth/me` | Bearer | ข้อมูล user + CKAN sources ที่เข้าถึงได้ |
 | POST | `/api/auth/change-password` | Bearer | เปลี่ยนรหัสผ่าน |
@@ -132,12 +145,13 @@ ogd-quality-windows/
 |--------|------|------|-------------|
 | GET | `/api/stats` | Bearer | Dashboard overview (grade dist, top/low datasets, queue) |
 | GET | `/api/datasets` | Bearer | รายการชุดข้อมูล (paginated, filterable, sortable) |
-| GET | `/api/datasets/[id]` | Bearer | รายละเอียดชุดข้อมูล |
+| GET | `/api/datasets/[id]` | — | รายละเอียดชุดข้อมูล + resources + score history |
+| GET | `/api/datasets/export` | Bearer | Export ทุก dataset + resources ตาม filter (ไม่ paginate) |
 | GET | `/api/resources/[id]` | — | รายละเอียด resource + 10 recent checks |
 | GET | `/api/orgs` | — | รายชื่อองค์กรทั้งหมด |
 
-**Query params สำหรับ `/api/datasets`:**  
-`page`, `search`, `grade` (A/B/C/D/F), `orgId`, `scoreType`, `minScore`, `structured` (yes/no), `mrStatus`, `sort` (field_asc/desc)
+**Query params สำหรับ `/api/datasets` และ `/api/datasets/export`:**  
+`page` (list เท่านั้น), `search`, `grade` (A/B/C/D/F), `orgId`, `scoreType`, `minScore`, `structured` (yes/no), `mrStatus`, `sort` (field_asc/desc)
 
 ### Operations
 
@@ -192,10 +206,7 @@ Higher-order route wrapper สำหรับ RBAC:
 export const GET = withAuth(async (req, { user, params }) => { ... }, ['admin'])
 export const POST = withAuth<{ id: string }>(handler)  // typed params
 ```
-- ตรวจ Bearer token
-- verify JWT
-- enforce role whitelist (optional)
-- resolve Next.js Promise params
+- ตรวจ Bearer token → verify JWT → enforce role whitelist → resolve Next.js Promise params
 
 ### `lib/prisma.ts`
 Singleton PrismaClient พร้อม pg adapter:
@@ -214,6 +225,11 @@ Browser-side fetch wrapper:
 - **401 recovery**: ลอง refresh แล้ว retry อัตโนมัติ
 - Redirect `/login` เมื่อ refresh ล้มเหลว
 
+### `lib/downloadFile.ts`
+Client-side export utilities (ใช้ SheetJS):
+- `downloadCSV(rows, filename)` — สร้าง CSV พร้อม UTF-8 BOM รองรับภาษาไทย
+- `downloadXLSX(sheets, filename)` — สร้าง XLSX หลาย sheets ด้วย `xlsx.utils.json_to_sheet`
+
 ### `lib/ckan.ts`
 CKAN API client:
 - `fetchAllPackages(source)` — paginate + retry (exponential backoff)
@@ -230,9 +246,12 @@ Redis queue operations:
 Formatting utilities (Thai labels):
 - `scoreToGrade(score)` → A/B/C/D/F/?
 - `gradeColor(grade)` → Tailwind badge classes
-- `timelinessLabel(status)` → Thai text
-- `machineReadableLabel(status)` → Thai text
+- `timelinessLabel/Color(status)` → Thai text + classes
+- `machineReadableLabel/Color(status)` → Thai text + classes
+- `structuredLabel(status)` → Thai text
+- `severityColor/Label(severity)` → classes + Thai text
 - `fmt(score, digits?)` → formatted number string
+- `scoreBarColor(score)` → Tailwind color class
 
 ### `lib/audit.ts`
 ```typescript
@@ -374,9 +393,57 @@ AuditLog
 
 ---
 
+## Export CSV/XLSX
+
+ระบบรองรับ export ข้อมูลคุณภาพ 3 จุด:
+
+### `/datasets` — รายการชุดข้อมูล
+- **⬇ CSV**: resource rows ทุก dataset ตาม filter (มีคอลัมน์ชุดข้อมูล + หน่วยงาน)
+- **⬇ XLSX**: 2 sheets — `ชุดข้อมูล` (สรุปคะแนนทุกมิติ) + `ทรัพยากร` (latest check ทุก field)
+- ดึงจาก `/api/datasets/export` — **ไม่จำกัด pagination**
+
+### `/datasets/:id` — รายละเอียดชุดข้อมูล
+- **⬇ CSV**: resource rows ของชุดข้อมูลนั้น
+- **⬇ XLSX**: 2 sheets — `สรุปชุดข้อมูล` + `ทรัพยากร`
+
+### `/resources/:id` — รายละเอียด resource
+- **⬇ รายงาน CSV/XLSX**: ประวัติ check ทุกครั้ง พร้อม validity report (error counts ทุกประเภท)
+- แยกจากปุ่ม "ดาวน์โหลดไฟล์" ที่ link ไปยังต้นฉบับ
+
+### `/api/datasets/export`
+```
+GET /api/datasets/export?search=...&grade=A&sort=overallScore_desc
+Authorization: Bearer <token>
+
+Response: { data: DatasetWithResources[], total: number }
+```
+- ใช้ filter เดียวกับ `/api/datasets` ยกเว้น `page`
+- `data[].resources[]` มี `checks[0]` (latest check) + `validityReport` พร้อมใช้
+
+---
+
 ## Docker & Deployment
 
-### Multi-stage Dockerfile (apps/web/Dockerfile.prod)
+### Dev Dockerfile (`apps/web/Dockerfile`)
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+RUN apk add --no-cache openssl
+COPY package*.json .npmrc ./
+RUN npm ci
+COPY . .
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build npx prisma generate
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+```
+
+**จุดสำคัญ:**
+- `COPY package*.json .npmrc ./` — copy `.npmrc` เพื่อให้ `npm ci` อ่าน `legacy-peer-deps=true`
+- Dummy `DATABASE_URL` ใช้เฉพาะ `prisma generate` build step (ไม่ connect จริง)
+- `.dockerignore` exclude `.next`, `node_modules`, `.swc` ป้องกัน Windows path issue
+
+### Production Dockerfile (`apps/web/Dockerfile.prod`)
 
 ```
 Stage 1: deps    → npm ci
@@ -386,31 +453,32 @@ Stage 3: runner  → copy standalone + full node_modules (สำหรับ pri
                    CMD: node server.js
 ```
 
-> **หมายเหตุ:** ต้อง copy full `node_modules` (ไม่ใช่ selective) เพราะ `prisma migrate deploy` ต้องการ `effect` package และ dependencies อื่น ๆ
+> **หมายเหตุ:** ต้อง copy full `node_modules` (ไม่ใช่ selective) เพราะ `prisma migrate deploy` ต้องการ `effect` package
 
-### docker-compose.prod.yml Services
+### docker-compose Services
 
 | Service | Image | Role |
 |---------|-------|------|
 | postgres | postgres:16-alpine | Primary DB (volume: pgdata) |
 | redis | redis:7-alpine | Job queue + cache (volume: redisdata) |
-| web | Dockerfile.prod | Next.js app + Prisma migrations |
-| worker | apps/worker/Dockerfile.prod | Python quality checker |
+| web | Dockerfile | Next.js app + Prisma migrations |
+| worker | apps/worker/Dockerfile | Python quality checker |
+| nginx | nginx:alpine | Reverse proxy (dev) |
 
-**Web startup command:**
+**Web startup command (dev):**
 ```sh
-node_modules/.bin/prisma migrate deploy && node server.js
+npx prisma migrate deploy && npm run dev
 ```
 
-**Networks:**
-- `internal` — postgres, redis, web, worker (bridge)
-- `proxy_net` — external Traefik network (สำหรับ HTTPS routing)
+**Networks (prod):**
+- `internal` — postgres, redis, web, worker
+- `proxy_net` — Traefik external network
 
 ### CI/CD (GitHub Actions)
 
 `.github/workflows/deploy-supportdata.yml`:
 1. Checkout code
-2. `rsync` ไฟล์ไป deploy directory (หลีกเลี่ยง `.git` ownership issues)
+2. `rsync` ไฟล์ไป deploy directory
 3. Write `.env` จาก GitHub Secrets
 4. `docker compose -f docker-compose.prod.yml up -d --build`
 
@@ -478,4 +546,4 @@ export const prisma = new PrismaClient({ adapter })
 
 ---
 
-*Updated: 2026-04-19*
+*Updated: 2026-04-22*

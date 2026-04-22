@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/apiClient'
 import ConfirmDialog from '@/app/_components/ConfirmDialog'
+import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, Tooltip,
@@ -115,6 +116,58 @@ export default function DatasetDetailPage() {
     setScanning(false)
   }
 
+  function handleDownload(format: 'csv' | 'xlsx') {
+    if (!data) return
+    const ts = new Date().toISOString().slice(0, 10)
+    const name = (data.title || data.name).replace(/[/\\?%*:|"<>]/g, '_')
+
+    const infoRows = [{
+      'ชื่อชุดข้อมูล': data.title || data.name,
+      'หน่วยงาน': data.organization?.title || data.organization?.name || '',
+      'เกรด': data.qualityGrade || '?',
+      'คะแนนรวม': data.overallScore ?? '',
+      'ความครบถ้วน (Metadata 20%)': data.completenessScore ?? '',
+      'ความทันสมัย (20%)': data.timelinessScore ?? '',
+      'การเข้าถึง (15%)': data.accessibilityScore ?? '',
+      'อ่านด้วยเครื่อง (20%)': data.machineReadableScore ?? '',
+      'ความถูกต้อง (25%)': data.validityScore ?? '',
+      'Machine Readable Status': data.machineReadableStatus || '',
+      'Timeliness Status': data.timelinessStatus || '',
+      'ตรวจล่าสุด': data.lastScanAt ? new Date(data.lastScanAt).toLocaleString('th-TH') : '',
+      'จำนวนไฟล์': data.resourceCount,
+      'ความถี่อัปเดต': data.updateFrequency || '',
+      'License': data.license || '',
+    }]
+
+    const resourceRows = data.resources.map(r => {
+      const c = r.latestCheck
+      return {
+        'ชื่อไฟล์': r.name || '',
+        'Format': r.format || '',
+        'URL': r.url || '',
+        'HTTP Status': c?.httpStatus ?? '',
+        'ดาวน์โหลดได้': c?.downloadable === true ? 'ใช่' : c?.downloadable === false ? 'ไม่' : '',
+        'Timeliness': c?.timelinessStatus || '',
+        'Structured': c?.structuredStatus || '',
+        'Machine Readable': c?.isMachineReadable === true ? 'ใช่' : c?.isMachineReadable === false ? 'ไม่' : '',
+        'Validity': c?.isValid === true ? 'ผ่าน' : c?.isValid === false ? 'ไม่ผ่าน' : '',
+        'จำนวนแถว': c?.rowCount ?? '',
+        'จำนวนคอลัมน์': c?.columnCount ?? '',
+        'ข้อผิดพลาด': c?.errorCount ?? '',
+        'Severity': c?.validityReport?.severity || '',
+      }
+    })
+
+    if (format === 'csv') {
+      downloadCSV(resourceRows, `${name}_resources_${ts}.csv`)
+    } else {
+      downloadXLSX([
+        { name: 'สรุปชุดข้อมูล', rows: infoRows },
+        { name: 'ทรัพยากร', rows: resourceRows },
+      ], `${name}_${ts}.xlsx`)
+    }
+  }
+
   if (error) return (
     <div className="p-8 max-w-3xl mx-auto">
       <Link href="/datasets" className="text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">← ชุดข้อมูล</Link>
@@ -163,12 +216,14 @@ export default function DatasetDetailPage() {
             </div>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
           {data.ckanSource && (
             <a href={`${data.ckanSource.url}/dataset/${data.ckanId}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs">
               เปิดใน CKAN ↗
             </a>
           )}
+          <button onClick={() => handleDownload('csv')} className="btn-secondary text-xs">⬇ CSV</button>
+          <button onClick={() => handleDownload('xlsx')} className="btn-secondary text-xs">⬇ XLSX</button>
           <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
           </button>

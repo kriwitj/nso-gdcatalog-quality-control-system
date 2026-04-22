@@ -1,0 +1,9 @@
+node_modules
+.next
+.swc
+coverage
+test-results
+e2e
+*.tsbuildinfo
+npm-debug.log*
+.env*.local

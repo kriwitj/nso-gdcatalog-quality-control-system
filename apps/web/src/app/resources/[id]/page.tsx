@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { timelinessLabel, timelinessColor, structuredLabel, severityColor, severityLabel } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
+import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
 import ConfirmDialog from '@/app/_components/ConfirmDialog'
 
 interface ValidityReportRow {
@@ -97,6 +98,54 @@ export default function ResourceDetailPage() {
       .catch(e => { console.error(e); setError(e.message) })
   }, [id])
 
+  function handleDownload(format: 'csv' | 'xlsx') {
+    if (!data) return
+    const ts = new Date().toISOString().slice(0, 10)
+    const name = (data.name || data.ckanId).replace(/[/\\?%*:|"<>]/g, '_')
+
+    const rows = data.checks.map((c, i) => {
+      const vr = c.validityReport
+      return {
+        'ลำดับ': i + 1,
+        'ตรวจเมื่อ': c.checkedAt ? new Date(c.checkedAt).toLocaleString('th-TH') : '',
+        'HTTP Status': c.httpStatus ?? '',
+        'ดาวน์โหลดได้': c.downloadable === true ? 'ใช่' : c.downloadable === false ? 'ไม่' : '',
+        'Content-Type': c.contentType || '',
+        'Format ที่ตรวจพบ': c.detectedFormat || '',
+        'Encoding': c.encoding || '',
+        'ขนาดไฟล์ (MB)': c.fileSize ? (c.fileSize / 1024 / 1024).toFixed(2) : '',
+        'จำนวนแถว': c.rowCount ?? '',
+        'จำนวนคอลัมน์': c.columnCount ?? '',
+        'Machine Readable': c.isMachineReadable === true ? 'ใช่' : c.isMachineReadable === false ? 'ไม่' : '',
+        'Structured Status': structuredLabel(c.structuredStatus),
+        'Timeliness': timelinessLabel(c.timelinessStatus),
+        'Validity': c.isValid === true ? 'ผ่าน' : c.isValid === false ? 'ไม่ผ่าน' : '',
+        'Severity': vr?.severity || '',
+        'ข้อผิดพลาด (รวม)': c.errorCount ?? '',
+        'คำเตือน': c.warningCount ?? '',
+        'Blank Header': vr?.blankHeader ?? '',
+        'Duplicate Header': vr?.duplicateHeader ?? '',
+        'Blank Row': vr?.blankRow ?? '',
+        'Extra Value': vr?.extraValue ?? '',
+        'Extra Header': vr?.extraHeader ?? '',
+        'Missing Value': vr?.missingValue ?? '',
+        'Format Error': vr?.formatError ?? '',
+        'Schema Error': vr?.schemaError ?? '',
+        'Encoding Error': vr?.encodingError ?? '',
+        'Source Error': vr?.sourceError ?? '',
+        'Error Message': vr?.errorMessage || '',
+        'Partial Scan': c.partialScan ? 'ใช่' : 'ไม่',
+        'ใช้เวลาตรวจ (ms)': c.scanDurationMs ?? '',
+      }
+    })
+
+    if (format === 'csv') {
+      downloadCSV(rows, `${name}_checks_${ts}.csv`)
+    } else {
+      downloadXLSX([{ name: 'ผลการตรวจสอบ', rows }], `${name}_checks_${ts}.xlsx`)
+    }
+  }
+
   if (error) return (
     <div className="p-8 max-w-3xl mx-auto">
       <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-mono whitespace-pre-wrap dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">{error}</div>
@@ -132,10 +181,12 @@ export default function ResourceDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0">
             {data.url && (
-              <a href={data.url} target="_blank" rel="noreferrer" className="btn-secondary text-xs">ดาวน์โหลด ↓</a>
+              <a href={data.url} target="_blank" rel="noreferrer" className="btn-secondary text-xs">ดาวน์โหลดไฟล์ ↓</a>
             )}
+            <button onClick={() => handleDownload('csv')} disabled={!data.checks.length} className="btn-secondary text-xs">⬇ รายงาน CSV</button>
+            <button onClick={() => handleDownload('xlsx')} disabled={!data.checks.length} className="btn-secondary text-xs">⬇ รายงาน XLSX</button>
             <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
               {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
             </button>

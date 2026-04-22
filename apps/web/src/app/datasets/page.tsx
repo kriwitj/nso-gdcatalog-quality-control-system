@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { gradeColor, fmt } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
+import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
 
 interface OrgItem { id: string; name: string; title: string | null }
 
@@ -204,6 +205,108 @@ export default function DatasetsPage() {
 
   const totalPages = pd ? Math.ceil(pd.total / pd.pageSize) : 0
 
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload(format: 'csv' | 'xlsx') {
+    setDownloading(true)
+    try {
+      const params = new URLSearchParams({ sort })
+      if (search)     params.set('search',     search)
+      if (grade)      params.set('grade',      grade)
+      if (orgId)      params.set('orgId',      orgId)
+      if (scoreType)  params.set('scoreType',  scoreType)
+      if (minScore)   params.set('minScore',   minScore)
+      if (structured) params.set('structured', structured)
+      if (mrStatus)   params.set('mrStatus',   mrStatus)
+
+      const r = await apiFetch(`/api/datasets/export?${params}`)
+      if (!r.ok) return
+
+      type ExportResource = {
+        id: string; name: string | null; format: string | null; url: string | null
+        checks: {
+          httpStatus: number | null; downloadable: boolean | null
+          isMachineReadable: boolean | null; isStructured: boolean | null
+          structuredStatus: string | null; timelinessStatus: string | null
+          rowCount: number | null; columnCount: number | null
+          isValid: boolean | null; errorCount: number | null; warningCount: number | null
+          detectedFormat: string | null; encoding: string | null; fileSize: number | null
+          validityReport: { severity: string | null; primaryIssue: string | null; errorMessage: string | null } | null
+        }[]
+      }
+      type ExportDataset = Dataset & {
+        updateFrequency: string | null; license: string | null
+        timelinessStatus: string | null; lastScanStatus: string | null
+        resources: ExportResource[]
+      }
+
+      const all = (await r.json()) as { data: ExportDataset[] }
+
+      const datasetRows = all.data.map(d => ({
+        'ชุดข้อมูล': d.title || d.name,
+        'CKAN Name': d.name,
+        'หน่วยงาน': d.organization?.title || d.organization?.name || '',
+        'เกรด': d.qualityGrade || '?',
+        'คะแนนรวม': d.overallScore ?? '',
+        'ความครบถ้วน (20%)': d.completenessScore ?? '',
+        'ความทันสมัย (20%)': d.timelinessScore ?? '',
+        'การเข้าถึง (15%)': d.accessibilityScore ?? '',
+        'อ่านด้วยเครื่อง (20%)': d.machineReadableScore ?? '',
+        'ความถูกต้อง (25%)': d.validityScore ?? '',
+        'Machine Readable Status': d.machineReadableStatus || '',
+        'Timeliness Status': (d as ExportDataset).timelinessStatus || '',
+        'จำนวนไฟล์': d.resourceCount,
+        'ความถี่อัปเดต': (d as ExportDataset).updateFrequency || '',
+        'License': (d as ExportDataset).license || '',
+        'ตรวจล่าสุด': d.lastScanAt ? new Date(d.lastScanAt).toLocaleDateString('th-TH') : '',
+        'สถานะการตรวจ': (d as ExportDataset).lastScanStatus || '',
+      }))
+
+      const resourceRows: Record<string, unknown>[] = []
+      for (const d of all.data) {
+        for (const res of d.resources) {
+          const c = res.checks[0] ?? null
+          resourceRows.push({
+            'ชุดข้อมูล': d.title || d.name,
+            'หน่วยงาน': d.organization?.title || d.organization?.name || '',
+            'เกรดชุดข้อมูล': d.qualityGrade || '?',
+            'ชื่อทรัพยากร': res.name || '',
+            'Format': res.format || '',
+            'Format ที่ตรวจพบ': c?.detectedFormat || '',
+            'URL': res.url || '',
+            'HTTP Status': c?.httpStatus ?? '',
+            'ดาวน์โหลดได้': c?.downloadable === true ? 'ใช่' : c?.downloadable === false ? 'ไม่' : '',
+            'Machine Readable': c?.isMachineReadable === true ? 'ใช่' : c?.isMachineReadable === false ? 'ไม่' : '',
+            'Structured': c?.structuredStatus || '',
+            'Timeliness': c?.timelinessStatus || '',
+            'Validity': c?.isValid === true ? 'ผ่าน' : c?.isValid === false ? 'ไม่ผ่าน' : '',
+            'Severity': c?.validityReport?.severity || '',
+            'ข้อผิดพลาดหลัก': c?.validityReport?.primaryIssue || '',
+            'จำนวนแถว': c?.rowCount ?? '',
+            'จำนวนคอลัมน์': c?.columnCount ?? '',
+            'ข้อผิดพลาด': c?.errorCount ?? '',
+            'คำเตือน': c?.warningCount ?? '',
+            'Encoding': c?.encoding || '',
+            'ขนาดไฟล์ (MB)': c?.fileSize ? (c.fileSize / 1024 / 1024).toFixed(2) : '',
+          })
+        }
+      }
+
+      const ts = new Date().toISOString().slice(0, 10)
+      if (format === 'csv') {
+        // CSV: รวม 2 ส่วนในไฟล์เดียว คั่นด้วยหัวข้อ
+        downloadCSV(resourceRows, `datasets_resources_${ts}.csv`)
+      } else {
+        downloadXLSX([
+          { name: 'ชุดข้อมูล', rows: datasetRows },
+          { name: 'ทรัพยากร', rows: resourceRows },
+        ], `datasets_${ts}.xlsx`)
+      }
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="p-6 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-5">
@@ -212,6 +315,22 @@ export default function DatasetsPage() {
           <p className="text-sm text-gray-500 mt-0.5 dark:text-gray-400">
             {pd ? `${pd.total.toLocaleString()} ชุดข้อมูล` : 'กำลังโหลด...'}
           </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleDownload('csv')}
+            disabled={downloading || !pd}
+            className="btn-secondary text-xs flex items-center gap-1"
+          >
+            {downloading ? '⏳' : '⬇'} CSV
+          </button>
+          <button
+            onClick={() => handleDownload('xlsx')}
+            disabled={downloading || !pd}
+            className="btn-secondary text-xs flex items-center gap-1"
+          >
+            {downloading ? '⏳' : '⬇'} XLSX
+          </button>
         </div>
       </div>
 

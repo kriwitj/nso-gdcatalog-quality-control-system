@@ -1,6 +1,6 @@
 # GDCatalog Quality Control System — ระบบตรวจคุณภาพข้อมูล GDCatalog Smart Plus
 
-ระบบตรวจสอบคุณภาพข้อมูลเปิดภาครัฐจาก `gdcatalog.go.th` แบบ 3 ชั้น:
+ระบบตรวจสอบคุณภาพข้อมูลเปิดภาครัฐจาก `gdcatalog.go.th` แบบ 3 ชั้น:  
 **Collector → Analyzer → Dashboard**
 
 ---
@@ -21,16 +21,18 @@ Dashboard (Next.js) ◄── PostgreSQL
 
 ## Tech Stack
 
-| Layer      | Technology                                          |
-|------------|-----------------------------------------------------|
-| Frontend   | Next.js 14, TypeScript, Tailwind CSS                |
-| Charts     | Recharts                                            |
-| Auth       | JWT (jsonwebtoken + bcryptjs), httpOnly cookie      |
-| Database   | PostgreSQL 16 + Prisma ORM                          |
-| Queue      | Redis 7                                             |
-| Worker     | Python 3.11 + Frictionless + psycopg2               |
-| Proxy      | Nginx                                               |
-| Container  | Docker + Docker Compose                             |
+| Layer      | Technology                                                   |
+|------------|--------------------------------------------------------------|
+| Frontend   | Next.js 15 (App Router), TypeScript 5.3, Tailwind CSS 3.4   |
+| Charts     | Recharts 3.x                                                 |
+| Export     | SheetJS (xlsx) — CSV / XLSX download                         |
+| Auth       | JWT (jsonwebtoken + bcryptjs), httpOnly cookie               |
+| ORM        | Prisma 7 + @prisma/adapter-pg                               |
+| Database   | PostgreSQL 16                                                |
+| Queue      | Redis 7                                                      |
+| Worker     | Python 3.11 + Frictionless + psycopg2                       |
+| Proxy      | Nginx                                                        |
+| Container  | Docker + Docker Compose                                      |
 
 ---
 
@@ -40,112 +42,79 @@ Dashboard (Next.js) ◄── PostgreSQL
 
 - Docker Engine ≥ 24
 - Docker Compose ≥ 2.20
-- RAM ≥ 2GB (แนะนำ 4GB สำหรับ production)
-- CPU ≥ 2 cores
+- RAM ≥ 2GB (แนะนำ 4GB)
 
 ---
 
-### 1. Development (เครื่อง local)
+### 1. Development
 
 ```bash
-# Clone project
 git clone <repo-url> ogd-quality
 cd ogd-quality
 
-# สร้าง .env จาก template
 cp .env.example .env
-# แก้ไขค่าต่างๆ โดยเฉพาะ POSTGRES_PASSWORD, REDIS_PASSWORD
-# และสร้าง JWT secrets (ดูรายละเอียดใน "JWT Secrets" ด้านล่าง)
+# แก้ POSTGRES_PASSWORD, REDIS_PASSWORD, JWT secrets
 
-# เริ่มระบบทั้งหมด
-make dev
+docker compose up -d --build
+```
 
-# เปิดดู log
-make logs
-
-# เปิด browser
-open http://localhost:3000
+**Windows:**
+```powershell
+.\ogd.ps1 dev
 ```
 
 ### 2. JWT Secrets
 
-ต้องตั้งค่าใน `.env` ก่อนรัน (สร้างด้วย `openssl rand -hex 32`):
-
 ```env
-JWT_ACCESS_SECRET=<random_hex_32_chars>
-JWT_REFRESH_SECRET=<random_hex_32_chars>
+JWT_ACCESS_SECRET=<openssl rand -hex 32>
+JWT_REFRESH_SECRET=<openssl rand -hex 32>
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 ```
 
-### 3. รัน DB migration ครั้งแรก (ถ้า web container ไม่ทำให้อัตโนมัติ)
-
-```bash
-make migrate
+สร้างด้วย PowerShell:
+```powershell
+[System.Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower()
 ```
 
-### 4. สร้าง admin user เริ่มต้น
+### 3. Migration + Seed (ครั้งแรก)
 
 ```bash
+# Migration รันอัตโนมัติตอน container start
+# หรือ manual:
+docker compose exec web npx prisma migrate deploy
+
+# สร้าง admin user
 docker compose exec web npm run db:seed
-# username: admin / password: Admin@1234 (เปลี่ยนหลังเข้าระบบครั้งแรก)
+# username: admin / password: Admin@1234
 ```
 
-### 5. ซิงค์ข้อมูลจาก CKAN ครั้งแรก
+### 4. ซิงค์และตรวจสอบคุณภาพ
 
 ```bash
-make sync
-# หรือ
-curl -X POST http://localhost:3000/api/sync
-```
+# ซิงค์ข้อมูลจาก CKAN
+curl -X POST http://localhost:3000/api/sync \
+  -H "Authorization: Bearer <token>"
 
-### 6. ตรวจสอบคุณภาพ
-
-```bash
-make scan
-# หรือ
-curl -X POST http://localhost:3000/api/scan
+# ตรวจสอบคุณภาพ
+curl -X POST http://localhost:3000/api/scan \
+  -H "Authorization: Bearer <token>"
 ```
 
 ---
 
-## Production Deployment
-
-### บน Server (Ubuntu 22.04 แนะนำ)
+## Production Deployment (Linux Server)
 
 ```bash
-# 1. Clone
 git clone <repo-url> /opt/ogd-quality
 cd /opt/ogd-quality
-
-# 2. สร้าง .env — ใส่ค่าจริงทั้งหมด
-cp .env.example .env
-nano .env
-
-# 3. ตั้ง SSL (ต้อง point domain มาที่ server ก่อน)
-export DOMAIN=ogd.yourdomain.go.th
-export CERT_EMAIL=admin@yourdomain.go.th
-chmod +x scripts/setup-ssl.sh
-./scripts/setup-ssl.sh
-
-# 4. Deploy
-chmod +x scripts/deploy.sh
+cp .env.example .env && nano .env
 ./scripts/deploy.sh
 ```
 
-### Crontab สำหรับ SSL renewal และ backup
-
-```cron
-# SSL renewal (รายเดือน)
-0 3 1 * * cd /opt/ogd-quality && certbot renew --quiet && cp /etc/letsencrypt/live/${DOMAIN}/*.pem nginx/certs/ && docker compose -f docker-compose.prod.yml restart nginx
-
-# Database backup (ทุกคืน)
-0 1 * * * cd /opt/ogd-quality && ./scripts/backup-db.sh >> /var/log/ogd-backup.log 2>&1
-```
-
 ---
 
-## ตัวชี้วัดคุณภาพ
+## ตัวชี้วัดคุณภาพ (5 มิติ)
 
 | มิติ                      | น้ำหนัก | คำอธิบาย                                    |
 |---------------------------|---------|---------------------------------------------|
@@ -157,52 +126,13 @@ chmod +x scripts/deploy.sh
 
 ### เกรดคุณภาพ
 
-| เกรด | คะแนน     |
-|------|-----------|
-| A    | 90–100    |
-| B    | 75–89     |
-| C    | 60–74     |
-| D    | 40–59     |
-| F    | 0–39      |
-
----
-
-### Machine Readable Status
-
-ระบบกำหนด status จาก format ของทรัพยากรที่ดาวน์โหลดได้จริง (HTTP 200) เท่านั้น
-
-| Status | ค่า DB | เงื่อนไข |
-|--------|--------|----------|
-| อ่านได้ทั้งหมด | `fully_machine_readable` | format อยู่ใน MACHINE_READABLE_FORMATS ทั้งหมด: `csv, tsv, json, jsonl, geojson, xml, xlsx, xls, ods, parquet, avro, ndjson` |
-| อ่านได้บางส่วน | `partially_machine_readable` | format เป็น `zip` (อาจมีไฟล์ machine-readable ข้างใน แต่ยังไม่แตก) หรือ format ที่มีโครงสร้างบางส่วน เช่น `kml, gpkg, gml` |
-| อ่านไม่ได้ | `not_machine_readable` | format อยู่ใน UNSTRUCTURED_FORMATS: `pdf, doc, docx, ppt, pptx, jpg, jpeg, png, gif, mp4` |
-| ไม่ทราบ | `unknown` | HTTP ไม่ใช่ 200/206 (เช่น 404, 403), connect ไม่ได้, format เป็น API/WMS/WFS/Database ที่ตรวจสอบด้วยไฟล์ไม่ได้ หรือ format ไม่รู้จัก |
-
-> **หมายเหตุ**: ถ้า HTTP status ไม่ใช่ 200/206 (เช่น 404) ระบบจะ**ไม่**สรุปจาก format ที่ประกาศไว้ใน metadata เพราะไม่สามารถยืนยันได้
-
----
-
-### Timeliness Status
-
-ระบบเปรียบเทียบวันที่แก้ไขล่าสุด (`metadata_modified`) กับความถี่การอัปเดต (`update_frequency`) ของชุดข้อมูล
-
-| Status | ค่า DB | เงื่อนไข |
-|--------|--------|----------|
-| ทันสมัย | `up_to_date` | จำนวนวันนับตั้งแต่ `metadata_modified` ≤ ค่า warn threshold ตามความถี่ |
-| ใกล้หมด | `warning` | เกิน warn threshold แต่ยังไม่เกิน outdated threshold |
-| ล้าสมัย | `outdated` | จำนวนวันเกิน outdated threshold ตามความถี่ |
-| ไม่ทราบ | `unknown` | ไม่มี `metadata_modified` หรือ parse วันที่ไม่ได้ |
-
-**Threshold ตามความถี่การอัปเดต**:
-
-| ความถี่ | ทันสมัย (≤ วัน) | ใกล้หมด (≤ วัน) | หมายเหตุ |
-|---------|----------------|----------------|---------|
-| รายวัน / daily | 2 | 7 | เกิน 7 วัน = ล้าสมัย |
-| รายสัปดาห์ / weekly | 10 | 21 | เกิน 21 วัน = ล้าสมัย |
-| รายเดือน / monthly | 45 | 90 | เกิน 90 วัน = ล้าสมัย |
-| รายไตรมาส / quarterly | 100 | 120 | เกิน 120 วัน = ล้าสมัย |
-| รายปี / yearly | 400 | 550 | เกิน 550 วัน = ล้าสมัย |
-| ไม่ระบุ / อื่นๆ | 180 | 365 | ใช้ค่า default |
+| เกรด | คะแนน  |
+|------|--------|
+| A    | 90–100 |
+| B    | 75–89  |
+| C    | 60–74  |
+| D    | 40–59  |
+| F    | 0–39   |
 
 ---
 
@@ -210,76 +140,112 @@ chmod +x scripts/deploy.sh
 
 ### Auth
 
-| Method | Path                    | คำอธิบาย                                              |
-|--------|-------------------------|-------------------------------------------------------|
-| POST   | `/api/auth/login`       | เข้าสู่ระบบ → คืน `accessToken` + set cookie          |
-| POST   | `/api/auth/refresh`     | รับ access token ใหม่ (ใช้ refresh_token cookie)      |
-| POST   | `/api/auth/logout`      | ออกจากระบบ + ลบ refresh token                         |
-| GET    | `/api/auth/me`          | ข้อมูลผู้ใช้ปัจจุบัน (ต้องใส่ `Authorization: Bearer`) |
+| Method | Path                         | คำอธิบาย                                      |
+|--------|------------------------------|-----------------------------------------------|
+| POST   | `/api/auth/login`            | เข้าสู่ระบบ → `accessToken` + refresh cookie  |
+| POST   | `/api/auth/refresh`          | รับ token ใหม่ (token rotation)               |
+| POST   | `/api/auth/logout`           | ออกจากระบบ + ลบ refresh token                 |
+| GET    | `/api/auth/me`               | ข้อมูลผู้ใช้ปัจจุบัน                           |
+| POST   | `/api/auth/change-password`  | เปลี่ยนรหัสผ่าน                                |
 
 ### Data
 
-| Method | Path                  | คำอธิบาย                        |
-|--------|-----------------------|---------------------------------|
-| GET    | `/api/stats`          | สถิติภาพรวม                     |
-| GET    | `/api/datasets`       | รายการชุดข้อมูล (paginated)     |
-| GET    | `/api/datasets/:id`   | รายละเอียดชุดข้อมูล              |
-| GET    | `/api/resources/:id`  | รายละเอียดทรัพยากร               |
-| POST   | `/api/sync`           | ดึงข้อมูลจาก CKAN               |
-| POST   | `/api/scan`           | เริ่มตรวจสอบคุณภาพ               |
-| GET    | `/api/jobs`           | รายการ scan jobs                |
-| GET    | `/api/jobs/queue`     | ความยาวคิว Redis                |
+| Method | Path                      | Auth   | คำอธิบาย                                      |
+|--------|---------------------------|--------|-----------------------------------------------|
+| GET    | `/api/stats`              | Bearer | สถิติภาพรวม dashboard                          |
+| GET    | `/api/datasets`           | Bearer | รายการชุดข้อมูล (paginated, filterable)        |
+| GET    | `/api/datasets/:id`       | public | รายละเอียดชุดข้อมูล + resources + score history|
+| GET    | `/api/datasets/export`    | Bearer | Export ทุก dataset + resources (ไม่ paginate)  |
+| GET    | `/api/resources/:id`      | public | รายละเอียด resource + check history            |
+| GET    | `/api/orgs`               | public | รายชื่อองค์กร                                  |
+
+**Query params สำหรับ `/api/datasets` และ `/api/datasets/export`:**  
+`search`, `grade` (A/B/C/D/F), `orgId`, `scoreType`, `minScore`, `structured` (yes/no), `mrStatus`, `sort`
+
+### Operations
+
+| Method | Path              | Roles         | คำอธิบาย                          |
+|--------|-------------------|---------------|-----------------------------------|
+| POST   | `/api/sync`       | admin, editor | Sync datasets จาก CKAN            |
+| GET    | `/api/sync`       | public        | สถานะ sync (counts)               |
+| POST   | `/api/scan`       | admin, editor | Enqueue quality checks            |
+| GET    | `/api/jobs`       | Bearer        | รายการ scan jobs (100 ล่าสุด)     |
+| GET    | `/api/jobs/:id`   | Bearer        | Job detail                        |
+| PATCH  | `/api/jobs/:id`   | admin         | Force complete/cancel job         |
+| GET    | `/api/jobs/queue` | Bearer        | Redis queue lengths               |
+
+**POST `/api/scan` body:**
+```json
+{}                        // full scan
+{ "datasetId": "..." }    // single dataset
+{ "resourceId": "..." }   // single resource
+```
+
+### Admin (admin เท่านั้น)
+
+| Method           | Path                            | คำอธิบาย                   |
+|------------------|---------------------------------|----------------------------|
+| GET/POST         | `/api/admin/users`              | จัดการผู้ใช้                |
+| GET/PATCH/DELETE | `/api/admin/users/:id`          | แก้ไข/ลบผู้ใช้              |
+| GET/POST         | `/api/admin/ckan-sources`       | จัดการ CKAN Sources         |
+| GET/PATCH/DELETE | `/api/admin/ckan-sources/:id`   | แก้ไข/ลบ source             |
+| GET/POST         | `/api/admin/org`                | จัดการ Ministry             |
+| GET/POST         | `/api/admin/org/:type`          | Department/Division/Group   |
+| GET/PATCH/DELETE | `/api/admin/org/:type/:id`      | แก้ไข/ลบ org                |
+| GET              | `/api/admin/audit`              | Audit log                   |
 
 ---
 
-## Roadmap
+## ฟีเจอร์ Export CSV/XLSX
 
-### Phase 1 ✅ (MVP)
-- Catalog sync จาก CKAN API
-- Resource check (HTTP, format, downloadable)
-- Tabular validation (CSV/XLSX) ด้วย Frictionless
-- Quality scoring 5 มิติ
-- Dashboard + drill-down
-- JWT Auth module (login / refresh / logout)
+### หน้ารายการชุดข้อมูล (`/datasets`)
+- ปุ่ม **⬇ CSV** — export resource rows ทุกชุดข้อมูลตาม filter ปัจจุบัน
+- ปุ่ม **⬇ XLSX** — 2 sheets: `ชุดข้อมูล` (สรุปคะแนน) + `ทรัพยากร` (ทุก resource + check results)
+- ดึงข้อมูลจาก `/api/datasets/export` — **ไม่จำกัด pagination** รวมทุกหน้า
 
-### Phase 2
-- [ ] Middleware ป้องกัน `/api/sync` และ `/api/scan` ให้ต้องเป็น admin
-- [ ] หน้า Login UI
-- [ ] Endpoint เปลี่ยนรหัสผ่าน (`POST /api/auth/change-password`)
-- [ ] Endpoint จัดการผู้ใช้ (`/api/admin/users`)
-- [ ] Alert ทาง email / LINE Notify เมื่อคะแนนต่ำกว่า threshold
-- [ ] Export report PDF/Excel
-- [ ] Score trend graph 90 วัน
+### หน้ารายละเอียดชุดข้อมูล (`/datasets/:id`)
+- ปุ่ม **⬇ CSV** — export ตาราง resources ของชุดข้อมูลนั้น
+- ปุ่ม **⬇ XLSX** — 2 sheets: `สรุปชุดข้อมูล` + `ทรัพยากร`
 
-### Phase 3
-- [ ] Schema registry — กำหนด schema มาตรฐานราย dataset
-- [ ] Custom validation rules ราย organization
-- [ ] Recommendation engine แนะนำการปรับปรุง
-- [ ] OpenAPI + webhook สำหรับระบบ governance
+### หน้ารายละเอียด resource (`/resources/:id`)
+- ปุ่ม **⬇ รายงาน CSV / XLSX** — export ประวัติ check ทุกครั้งพร้อม validity report ครบทุก error type
+- แยกจากปุ่ม "ดาวน์โหลดไฟล์" ที่ link ไปยังไฟล์ต้นฉบับ
+
+---
+
+## RBAC
+
+| Role     | ดูข้อมูล | Sync | Scan | Admin | เปลี่ยนรหัส |
+|----------|----------|------|------|-------|------------|
+| admin    | ทั้งหมด  | ✅   | ✅   | ✅    | ✅         |
+| editor   | Division | ✅   | ✅   | ❌    | ✅         |
+| viewer   | Division | ❌   | ❌   | ❌    | ✅         |
 
 ---
 
 ## Troubleshooting
 
 ```bash
-# ดู log ของ service เฉพาะ
-docker compose logs -f worker
+# ดู log
 docker compose logs -f web
+docker compose logs -f worker
 
-# เข้าไปใน container
-docker compose exec web sh
-docker compose exec worker bash
-
-# ตรวจสอบคิว Redis
+# ตรวจสอบคิว
 docker compose exec redis redis-cli -a $REDIS_PASSWORD LLEN ogd:queue:resource_check
 
-# ล้างคิว (กรณีค้าง)
-docker compose exec redis redis-cli -a $REDIS_PASSWORD DEL ogd:queue:resource_check
+# Prisma
+docker compose exec web npx prisma migrate deploy
+docker compose exec web npx prisma studio
 
-# Prisma Studio (UI สำหรับดู DB)
-make studio
-
-# Reset และเริ่มใหม่
-docker compose down -v  # ⚠️ ลบ data ทั้งหมด
-make dev
+# Reset (⚠️ ลบ data ทั้งหมด)
+docker compose down -v && docker compose up -d --build
 ```
+
+**ปัญหา `npm install` ใน Docker (peer deps):**  
+ไฟล์ `apps/web/.npmrc` มี `legacy-peer-deps=true` แก้ปัญหานี้แล้ว
+
+**ปัญหา `prisma generate` หาไม่เจอ DATABASE_URL ตอน build:**  
+Dockerfile ส่ง dummy URL ขณะ build step — ไม่ต้องแก้ไขเพิ่มเติม
+
+**ปัญหา `.next` folder ใน Docker build context:**  
+ไฟล์ `apps/web/.dockerignore` exclude `.next`, `node_modules`, `.swc` แล้ว
