@@ -104,11 +104,30 @@ export default function JobsPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 mb-4">
-        <button onClick={() => setConfirmSync(true)} className="btn-secondary">⟳ ซิงค์ CKAN</button>
-        <button onClick={() => setConfirmScan(true)} className="btn-primary">▶ ตรวจสอบทั้งหมด</button>
-        <button onClick={load}                       className="btn-secondary">🔄 รีเฟรช</button>
-      </div>
+      {(() => {
+        const isBusy = running > 0 || pending > 0
+        return (
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <button
+              onClick={() => setConfirmSync(true)}
+              disabled={isBusy}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isBusy ? 'กรุณารอให้งานปัจจุบันเสร็จก่อน' : undefined}
+            >
+              {isBusy ? '⏳ กำลังดำเนินการ...' : '⟳ ซิงค์ CKAN'}
+            </button>
+            <button
+              onClick={() => setConfirmScan(true)}
+              disabled={isBusy}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isBusy ? 'กรุณารอให้งานปัจจุบันเสร็จก่อน' : undefined}
+            >
+              {isBusy ? '⏳ กำลังดำเนินการ...' : '▶ ตรวจสอบทั้งหมด'}
+            </button>
+            <button onClick={load} className="btn-secondary">🔄 รีเฟรช</button>
+          </div>
+        )
+      })()}
       <ConfirmDialog
         open={confirmSync} title="ยืนยันการซิงค์"
         message="ซิงค์ข้อมูลชุดข้อมูลจาก CKAN ใช่หรือไม่?"

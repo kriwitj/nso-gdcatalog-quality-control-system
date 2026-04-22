@@ -40,11 +40,14 @@ export default function DashboardPage() {
   const [msg,          setMsg]          = useState('')
   const [confirmSync,  setConfirmSync]  = useState(false)
   const [confirmScan,  setConfirmScan]  = useState(false)
+  const [activeJobs,   setActiveJobs]   = useState(0)
 
   useEffect(() => {
     apiFetch('/api/stats').then(async r => {
       if (!r.ok) { setLoading(false); return }
-      setStats(await r.json())
+      const data = await r.json()
+      setStats(data)
+      setActiveJobs(data.pendingJobs ?? 0)
       setLoading(false)
     })
   }, [])
@@ -55,6 +58,7 @@ export default function DashboardPage() {
     const r = await apiFetch('/api/sync', { method: 'POST' })
     const d = await r.json()
     setMsg(r.ok ? (d.message || 'เริ่มซิงค์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    if (r.ok) setActiveJobs(j => j + 1)
     setSyncing(false)
   }
 
@@ -64,8 +68,11 @@ export default function DashboardPage() {
     const r = await apiFetch('/api/scan', { method: 'POST' })
     const d = await r.json()
     setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    if (r.ok) setActiveJobs(j => j + 1)
     setScanning(false)
   }
+
+  const isBusy = syncing || scanning || activeJobs > 0
 
   if (loading) return (
     <div className="p-8 flex items-center justify-center h-64 text-gray-400">กำลังโหลด...</div>
@@ -87,11 +94,11 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => setConfirmSync(true)} disabled={syncing} className="btn-secondary">
-            {syncing ? '⏳ กำลังซิงค์...' : '⟳ ซิงค์จาก CKAN'}
+          <button onClick={() => setConfirmSync(true)} disabled={isBusy} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            {syncing ? '⏳ กำลังซิงค์...' : activeJobs > 0 && !syncing ? '⏳ กำลังดำเนินการ...' : '⟳ ซิงค์จาก CKAN'}
           </button>
-          <button onClick={() => setConfirmScan(true)} disabled={scanning} className="btn-primary">
-            {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบคุณภาพ'}
+          <button onClick={() => setConfirmScan(true)} disabled={isBusy} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+            {scanning ? '⏳ กำลังตรวจ...' : activeJobs > 0 && !scanning ? '⏳ กำลังดำเนินการ...' : '▶ ตรวจสอบคุณภาพ'}
           </button>
         </div>
       </div>
