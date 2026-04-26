@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { gradeColor, fmt } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
 import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
+import ExportButton from '@/app/_components/ExportButton'
 
 interface OrgItem { id: string; name: string; title: string | null }
 
@@ -316,22 +317,11 @@ export default function DatasetsPage() {
             {pd ? `${pd.total.toLocaleString()} ชุดข้อมูล` : 'กำลังโหลด...'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleDownload('csv')}
-            disabled={downloading || !pd}
-            className="btn-secondary text-xs flex items-center gap-1"
-          >
-            {downloading ? '⏳' : '⬇'} CSV
-          </button>
-          <button
-            onClick={() => handleDownload('xlsx')}
-            disabled={downloading || !pd}
-            className="btn-secondary text-xs flex items-center gap-1"
-          >
-            {downloading ? '⏳' : '⬇'} XLSX
-          </button>
-        </div>
+        <ExportButton
+          onExport={handleDownload}
+          disabled={!pd}
+          loading={downloading}
+        />
       </div>
 
       {/* Filter bar */}

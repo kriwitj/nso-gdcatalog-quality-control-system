@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/apiClient'
 import ConfirmDialog from '@/app/_components/ConfirmDialog'
+import ExportButton from '@/app/_components/ExportButton'
 import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
@@ -222,8 +223,7 @@ export default function DatasetDetailPage() {
               เปิดใน CKAN ↗
             </a>
           )}
-          <button onClick={() => handleDownload('csv')} className="btn-secondary text-xs">⬇ CSV</button>
-          <button onClick={() => handleDownload('xlsx')} className="btn-secondary text-xs">⬇ XLSX</button>
+          <ExportButton onExport={handleDownload} />
           <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
           </button>

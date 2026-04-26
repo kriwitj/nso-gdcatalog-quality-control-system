@@ -7,6 +7,7 @@ import { timelinessLabel, timelinessColor, structuredLabel, severityColor, sever
 import { apiFetch } from '@/lib/apiClient'
 import { downloadCSV, downloadXLSX } from '@/lib/downloadFile'
 import ConfirmDialog from '@/app/_components/ConfirmDialog'
+import ExportButton from '@/app/_components/ExportButton'
 
 interface ValidityReportRow {
   blankHeader: number; duplicateHeader: number; blankRow: number
@@ -185,8 +186,7 @@ export default function ResourceDetailPage() {
             {data.url && (
               <a href={data.url} target="_blank" rel="noreferrer" className="btn-secondary text-xs">ดาวน์โหลดไฟล์ ↓</a>
             )}
-            <button onClick={() => handleDownload('csv')} disabled={!data.checks.length} className="btn-secondary text-xs">⬇ รายงาน CSV</button>
-            <button onClick={() => handleDownload('xlsx')} disabled={!data.checks.length} className="btn-secondary text-xs">⬇ รายงาน XLSX</button>
+            <ExportButton onExport={handleDownload} disabled={!data.checks.length} label="รายงาน" />
             <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
               {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
             </button>
