@@ -16,7 +16,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Noto Sans Thai', 'Noto Sans', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-noto-thai)', 'var(--font-noto)', 'system-ui', 'sans-serif'],
       },
     },
   },

@@ -130,7 +130,7 @@ export default function PortalShell({ children }: { children: ReactNode }) {
   const pageTitle = PAGE_TITLES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? 'GDCatalog QC'
 
   return (
-    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-page)', fontFamily: "'Noto Sans Thai','Noto Sans',sans-serif" }}>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── SIDEBAR ── */}
       <aside

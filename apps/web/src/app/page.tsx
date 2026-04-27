@@ -100,7 +100,7 @@ export default function LandingPage() {
   }, [stats])
 
   return (
-    <div style={{ fontFamily:"'Noto Sans Thai','Noto Sans',sans-serif", color:'#111827', overflowX:'hidden' }}>
+    <div style={{ color:'#111827', overflowX:'hidden' }}>
 
       {/* ════════════════════════ NAV ════════════════════════ */}
       <nav style={{
@@ -530,7 +530,7 @@ export default function LandingPage() {
             </div>
             {[
               { title:'ระบบ', links:[['#features','คุณภาพข้อมูล'],['#how','การทำงาน'],['#stats','สถิติ'],['#api','API Docs']] },
-              { title:'หน่วยงาน', links:[['#','gdcatalog.go.th'],['#','data.go.th'],['#','สสช.']] },
+              { title:'หน่วยงาน', links:[['https://gdcatalog.go.th','gdcatalog.go.th'],['https://data.go.th','data.go.th'],['https://www.nso.go.th','สำนักงานสถิติแห่งชาติ']] },
               { title:'ช่วยเหลือ', links:[['#','คู่มือการใช้งาน'],['#','ติดต่อทีมงาน'],['#','นโยบายความเป็นส่วนตัว']] },
             ].map(col=>(
               <div key={col.title}>
