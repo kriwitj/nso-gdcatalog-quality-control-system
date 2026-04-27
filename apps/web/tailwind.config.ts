@@ -16,7 +16,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['IBM Plex Sans Thai', 'IBM Plex Sans', 'system-ui', 'sans-serif'],
+        sans: ['Noto Sans Thai', 'Noto Sans', 'system-ui', 'sans-serif'],
       },
     },
   },

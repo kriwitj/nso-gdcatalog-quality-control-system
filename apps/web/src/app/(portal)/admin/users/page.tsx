@@ -23,13 +23,31 @@ const EMPTY_FORM = {
 }
 
 const ROLE_STYLE: Record<string, string> = {
-  admin:  'text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/30 dark:border-red-700',
+  admin:  'text-white border-transparent',
   editor: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-900/30 dark:border-blue-700',
-  viewer: 'text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600',
+  viewer: 'text-gray-500 bg-transparent border-transparent dark:text-gray-400',
+}
+
+const ROLE_BG: Record<string, string> = {
+  admin:  '#1B3A6B',
+  editor: '',
+  viewer: '',
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  admin: '👑 Admin', editor: '✏️ Editor', viewer: '👁 Viewer',
+  admin: 'admin', editor: 'editor', viewer: 'viewer',
+}
+
+function formatThaiDate(dateStr: string) {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  const thYear = d.getFullYear() + 543
+  const day    = d.getDate()
+  const month  = d.getMonth() + 1
+  const hh     = String(d.getHours()).padStart(2, '0')
+  const mm     = String(d.getMinutes()).padStart(2, '0')
+  const ss     = String(d.getSeconds()).padStart(2, '0')
+  return `${day}/${month}/${thYear} ${hh}:${mm}:${ss}`
 }
 
 function Avatar({ name, role }: { name: string; role: string }) {
@@ -134,21 +152,21 @@ export default function AdminUsersPage() {
   const filteredDivs  = orgData.divisions.filter(d  => !form.departmentId || d.departmentId === form.departmentId)
   const filteredGrps  = orgData.groups.filter(g     => !form.divisionId   || g.divisionId   === form.divisionId)
 
-  const activeCount   = users.filter(u => u.isActive).length
-  const adminCount    = users.filter(u => u.role === 'admin').length
-
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">ผู้ใช้งานระบบ</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {loading ? 'กำลังโหลด...' : `${users.length} คน · ใช้งานอยู่ ${activeCount} · Admin ${adminCount}`}
-          </p>
-        </div>
-        <button onClick={openCreate} className="btn-primary text-sm gap-1.5">
-          <span className="text-base leading-none">+</span> สร้างผู้ใช้
+    <div>
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold" style={{ color: '#111827' }}>
+          {loading ? 'ผู้ใช้งานทั้งหมด' : `ผู้ใช้งานทั้งหมด (${users.length})`}
+        </h2>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
+          style={{ background: '#1B3A6B' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#0F2349' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1B3A6B' }}
+        >
+          + เพิ่มผู้ใช้งาน
         </button>
       </div>
 
@@ -174,12 +192,12 @@ export default function AdminUsersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              <th className="px-4 py-3 text-left font-medium">ผู้ใช้</th>
-              <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Email</th>
-              <th className="px-4 py-3 text-left font-medium">Role</th>
-              <th className="px-4 py-3 text-left font-medium hidden md:table-cell">หน่วยงาน</th>
+              <th className="px-4 py-3 text-left font-medium">ชื่อผู้ใช้</th>
+              <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">อีเมล</th>
+              <th className="px-4 py-3 text-left font-medium">บทบาท</th>
+              <th className="px-4 py-3 text-left font-medium hidden md:table-cell">เข้าใช้ล่าสุด</th>
               <th className="px-4 py-3 text-center font-medium">สถานะ</th>
-              <th className="px-4 py-3 text-right font-medium">จัดการ</th>
+              <th className="px-4 py-3 text-right font-medium"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -210,13 +228,15 @@ export default function AdminUsersPage() {
                   {u.email || <span className="text-gray-300 dark:text-gray-600">—</span>}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`badge text-xs ${ROLE_STYLE[u.role] || ROLE_STYLE.viewer}`}>
+                  <span
+                    className={`badge text-xs ${ROLE_STYLE[u.role] || ROLE_STYLE.viewer}`}
+                    style={ROLE_BG[u.role] ? { background: ROLE_BG[u.role] } : undefined}
+                  >
                     {ROLE_LABEL[u.role] || u.role}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 hidden md:table-cell">
-                  {u.division?.name || u.department?.name || u.ministry?.name
-                    || <span className="text-gray-300 dark:text-gray-600 italic">ไม่ระบุ</span>}
+                  {formatThaiDate(u.createdAt)}
                 </td>
                 <td className="px-4 py-3 text-center">
                   {u.isActive ? (
@@ -225,7 +245,7 @@ export default function AdminUsersPage() {
                     </span>
                   ) : (
                     <span className="badge text-gray-500 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-700 dark:border-gray-600 text-xs">
-                      ปิด
+                      ปิดใช้งาน
                     </span>
                   )}
                 </td>

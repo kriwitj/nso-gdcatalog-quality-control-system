@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { scoreToGrade, gradeColor, fmt } from '@/lib/scoring'
+import { gradeColor, fmt } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
 import Link from 'next/link'
-import ConfirmDialog from '@/app/_components/ConfirmDialog'
 
 interface Stats {
   totalDatasets: number
@@ -33,46 +32,17 @@ const MR_COLORS: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [stats,   setStats]   = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing,      setSyncing]      = useState(false)
-  const [scanning,     setScanning]     = useState(false)
-  const [msg,          setMsg]          = useState('')
-  const [confirmSync,  setConfirmSync]  = useState(false)
-  const [confirmScan,  setConfirmScan]  = useState(false)
-  const [activeJobs,   setActiveJobs]   = useState(0)
 
   useEffect(() => {
     apiFetch('/api/stats').then(async r => {
       if (!r.ok) { setLoading(false); return }
       const data = await r.json()
       setStats(data)
-      setActiveJobs(data.pendingJobs ?? 0)
       setLoading(false)
     })
   }, [])
-
-  async function triggerSync() {
-    setConfirmSync(false)
-    setSyncing(true); setMsg('')
-    const r = await apiFetch('/api/sync', { method: 'POST' })
-    const d = await r.json()
-    setMsg(r.ok ? (d.message || 'เริ่มซิงค์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
-    if (r.ok) setActiveJobs(j => j + 1)
-    setSyncing(false)
-  }
-
-  async function triggerScan() {
-    setConfirmScan(false)
-    setScanning(true); setMsg('')
-    const r = await apiFetch('/api/scan', { method: 'POST' })
-    const d = await r.json()
-    setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
-    if (r.ok) setActiveJobs(j => j + 1)
-    setScanning(false)
-  }
-
-  const isBusy = syncing || scanning || activeJobs > 0
 
   if (loading) return (
     <div className="p-8 flex items-center justify-center h-64 text-gray-400">กำลังโหลด...</div>
@@ -85,42 +55,10 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">ภาพรวมคุณภาพข้อมูล</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            ซิงค์ล่าสุด: {s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={() => setConfirmSync(true)} disabled={isBusy} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
-            {syncing ? '⏳ กำลังซิงค์...' : activeJobs > 0 && !syncing ? '⏳ กำลังดำเนินการ...' : '⟳ ซิงค์จาก CKAN'}
-          </button>
-          <button onClick={() => setConfirmScan(true)} disabled={isBusy} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
-            {scanning ? '⏳ กำลังตรวจ...' : activeJobs > 0 && !scanning ? '⏳ กำลังดำเนินการ...' : '▶ ตรวจสอบคุณภาพ'}
-          </button>
-        </div>
-      </div>
-      <ConfirmDialog
-        open={confirmSync} title="ยืนยันการซิงค์"
-        message="ซิงค์ข้อมูลชุดข้อมูลจาก CKAN ใช่หรือไม่?"
-        confirmLabel="⟳ เริ่มซิงค์"
-        onConfirm={triggerSync} onCancel={() => setConfirmSync(false)}
-      />
-      <ConfirmDialog
-        open={confirmScan} title="ยืนยันการตรวจสอบ"
-        message="ตรวจสอบคุณภาพทรัพยากรทั้งหมดในขอบเขตของคุณ ใช่หรือไม่?"
-        confirmLabel="▶ เริ่มตรวจสอบ"
-        onConfirm={triggerScan} onCancel={() => setConfirmScan(false)}
-      />
-      {msg && (
-        <div className={`mb-6 p-3 border rounded-lg text-sm ${
-          msg.includes('ผิดพลาด') || msg.includes('สิทธิ์')
-            ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
-            : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
-        }`}>{msg}</div>
-      )}
+      {/* Sync info */}
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
+        ซิงค์ล่าสุด: {s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
+      </p>
 
       {/* Top stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
