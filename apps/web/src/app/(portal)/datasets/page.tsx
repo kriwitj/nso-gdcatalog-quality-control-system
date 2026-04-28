@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { gradeColor, fmt } from '@/lib/scoring'
 import { apiFetch } from '@/lib/apiClient'
@@ -48,6 +48,93 @@ const SCORE_TYPES = [
   { value: 'machineReadable',label: 'อ่านด้วยเครื่อง' },
   { value: 'validity',       label: 'ความถูกต้อง'  },
 ]
+
+// ─── Searchable org dropdown ──────────────────────────────────────
+
+function OrgSelect({
+  orgs,
+  value,
+  onChange,
+}: {
+  orgs: OrgItem[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = orgs.find(o => o.id === value)
+  const filtered = q
+    ? orgs.filter(o => (o.title || o.name).toLowerCase().includes(q.toLowerCase()))
+    : orgs
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  function select(id: string) {
+    onChange(id)
+    setOpen(false)
+    setQ('')
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className="input-field w-48 text-left flex items-center justify-between gap-1 cursor-pointer"
+        onClick={() => { setOpen(v => !v); setQ('') }}
+      >
+        <span className="truncate text-sm flex-1">
+          {selected ? (selected.title || selected.name) : '— หน่วยงานทั้งหมด —'}
+        </span>
+        <span className="text-gray-400 shrink-0 text-xs">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+            <input
+              autoFocus
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-gray-100 outline-none focus:border-blue-400"
+              placeholder="พิมพ์เพื่อค้นหาหน่วยงาน..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+            />
+          </div>
+          <ul className="max-h-60 overflow-y-auto py-1">
+            <li
+              className="px-3 py-2 text-sm cursor-pointer text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-400"
+              onClick={() => select('')}
+            >
+              — หน่วยงานทั้งหมด —
+            </li>
+            {filtered.map(o => (
+              <li
+                key={o.id}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 ${
+                  value === o.id
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                    : 'dark:text-gray-200'
+                }`}
+                onClick={() => select(o.id)}
+              >
+                {o.title || o.name}
+              </li>
+            ))}
+            {filtered.length === 0 && (
+              <li className="px-3 py-2 text-sm text-gray-400">ไม่พบหน่วยงาน</li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Score cell ───────────────────────────────────────────────────
 
@@ -335,16 +422,11 @@ export default function DatasetsPage() {
         />
 
         {/* Organization */}
-        <select
-          className="input-field w-48"
+        <OrgSelect
+          orgs={orgs}
           value={orgId}
-          onChange={e => setFilter('orgId', e.target.value)}
-        >
-          <option value="">— หน่วยงานทั้งหมด —</option>
-          {orgs.map(o => (
-            <option key={o.id} value={o.id}>{o.title || o.name}</option>
-          ))}
-        </select>
+          onChange={v => setFilter('orgId', v)}
+        />
 
         {/* Grade */}
         <select
@@ -444,7 +526,7 @@ export default function DatasetsPage() {
                     {d.organization?.title || d.organization?.name || '—'}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell text-xs truncate max-w-36">
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell text-xs min-w-32">
                   {d.organization?.title || d.organization?.name || '—'}
                 </td>
                 <td className="px-3 py-3 text-center hidden lg:table-cell dark:text-gray-400">

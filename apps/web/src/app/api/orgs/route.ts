@@ -10,20 +10,13 @@ async function buildScopeFilter(payload: AccessTokenPayload): Promise<Prisma.Dat
 
   const dbUser = await prisma.user.findUnique({
     where:  { id: payload.userId },
-    select: { ministryId: true, departmentId: true, divisionId: true },
+    select: { divisionId: true },
   })
-  if (!dbUser) return {}
 
-  const { ministryId, departmentId, divisionId } = dbUser
-  if (!ministryId && !departmentId && !divisionId) return {}
-
-  const orConditions: Prisma.CkanSourceWhereInput[] = []
-  if (divisionId)   orConditions.push({ divisionId })
-  if (departmentId) orConditions.push({ departmentId })
-  if (ministryId)   orConditions.push({ ministryId })
+  if (!dbUser?.divisionId) return { id: { in: [] } }
 
   const scopeSources = await prisma.ckanSource.findMany({
-    where:  { isActive: true, OR: orConditions },
+    where:  { isActive: true, divisionId: dbUser.divisionId },
     select: { id: true },
   })
   return { ckanSourceId: { in: scopeSources.map((s: { id: string }) => s.id) } }
