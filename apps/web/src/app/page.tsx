@@ -246,98 +246,84 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Bento grid */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(12,1fr)', gap:16 }}>
-            {/* Large card — Validity (most weight) */}
-            <div className="reveal" data-d="1" style={{ gridColumn:'span 5', background:'#fff', borderRadius:20, padding:32, border:'1px solid #E5E7EB', boxShadow:'0 1px 4px rgba(0,0,0,0.05)', display:'flex', flexDirection:'column', justifyContent:'space-between', minHeight:240, position:'relative', overflow:'hidden' }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'#EF4444', borderRadius:'20px 20px 0 0' }}/>
-              <div>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-                  <div style={{ width:48, height:48, borderRadius:14, background:'#FEF2F2', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          {/* Uniform 5-dimension cards */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:16, marginBottom:16 }}>
+            {[
+              {
+                color:'#EF4444', bg:'#FEF2F2', pct:'25%', title:'Validity',
+                desc:'ความถูกต้องของข้อมูล · Frictionless validation ตรวจ schema, type, constraint ทุก resource',
+                icon:<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>,
+                d:'1',
+              },
+              {
+                color:'#3B82F6', bg:'#EFF6FF', pct:'20%', title:'Completeness',
+                desc:'ความสมบูรณ์ของ Metadata · ชื่อ คำอธิบาย แท็ก ใบอนุญาต ความถี่อัปเดต',
+                icon:<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>,
+                d:'2',
+              },
+              {
+                color:'#8B5CF6', bg:'#F5F3FF', pct:'20%', title:'Timeliness',
+                desc:'ความทันสมัยของข้อมูล · เทียบกับ updateFrequency ที่กำหนดไว้',
+                icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+                d:'3',
+              },
+              {
+                color:'#10B981', bg:'#ECFDF5', pct:'15%', title:'Accessibility',
+                desc:'เข้าถึงได้จริง · ดาวน์โหลดได้ผ่าน HTTP ตรวจ status code และ response',
+                icon:<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>,
+                d:'2',
+              },
+              {
+                color:'#F59E0B', bg:'#FFFBEB', pct:'20%', title:'Machine Readable',
+                desc:'รูปแบบที่เครื่องอ่านได้ · CSV / XLSX / JSON เทียบกับ PDF / DOC',
+                icon:<path d="M4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.58 4 8 4s8-1.79 8-4M4 7c0-2.21 3.58-4 8-4s8 1.79 8 4"/>,
+                d:'3',
+              },
+            ].map((dim) => (
+              <div
+                key={dim.title}
+                className="reveal"
+                data-d={dim.d}
+                style={{
+                  background:'#fff', borderRadius:20, border:'1px solid #E5E7EB',
+                  boxShadow:'0 1px 4px rgba(0,0,0,0.05)', position:'relative',
+                  overflow:'hidden', display:'flex', flexDirection:'column', padding:'24px 20px 20px',
+                }}
+              >
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:dim.color, borderRadius:'20px 20px 0 0' }}/>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                  <div style={{ width:42, height:42, borderRadius:12, background:dim.bg, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={dim.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                      {dim.icon}
+                    </svg>
                   </div>
-                  <span style={{ fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background:'#FEF2F2', color:'#EF4444' }}>25%</span>
+                  <span style={{ fontSize:18, fontWeight:900, color:dim.color, letterSpacing:'-0.02em' }}>{dim.pct}</span>
                 </div>
-                <h3 style={{ fontSize:18, fontWeight:800, color:'#0F2349', margin:'0 0 6px' }}>Validity</h3>
-                <p style={{ fontSize:12, color:'#6B7280', lineHeight:1.65, margin:0 }}>ความถูกต้องของข้อมูล · Frictionless validation ตรวจ schema, type, constraint ทุก resource</p>
-              </div>
-              <div style={{ marginTop:20 }}>
-                <div style={{ height:6, background:'#F3F4F6', borderRadius:3, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:'61%', background:'linear-gradient(90deg,#EF4444,#F97316)', borderRadius:3 }}/>
+                <h3 style={{ fontSize:14, fontWeight:800, color:'#0F2349', margin:'0 0 6px' }}>{dim.title}</h3>
+                <p style={{ fontSize:11.5, color:'#6B7280', lineHeight:1.65, margin:'0 0 14px', flex:1 }}>{dim.desc}</p>
+                <div style={{ height:4, background:'#F3F4F6', borderRadius:2, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:dim.pct, background:dim.color, borderRadius:2, opacity:0.7 }}/>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-                  <span style={{ fontSize:11, color:'#9CA3AF' }}>คะแนนเฉลี่ย</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:'#EF4444' }}>61.2</span>
+                <div style={{ display:'flex', justifyContent:'space-between', marginTop:5 }}>
+                  <span style={{ fontSize:10, color:'#9CA3AF' }}>น้ำหนักคะแนน</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:dim.color }}>{dim.pct}</span>
                 </div>
               </div>
-            </div>
+            ))}
+          </div>
 
-            {/* Medium — Completeness */}
-            <div className="reveal" data-d="2" style={{ gridColumn:'span 4', background:'#fff', borderRadius:20, padding:28, border:'1px solid #E5E7EB', boxShadow:'0 1px 4px rgba(0,0,0,0.05)', position:'relative', overflow:'hidden', minHeight:200 }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'#3B82F6', borderRadius:'20px 20px 0 0' }}/>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <div style={{ width:42, height:42, borderRadius:12, background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          {/* Grade scale card */}
+          <div className="reveal" data-d="4" style={{ background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', borderRadius:20, padding:'24px 28px', boxShadow:'0 8px 32px rgba(59,130,246,0.25)', display:'flex', alignItems:'center', gap:32, flexWrap:'wrap' }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.7)', letterSpacing:'0.08em', textTransform:'uppercase', margin:0, flexShrink:0 }}>เกณฑ์คะแนน</p>
+            <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap' }}>
+              {[{g:'A',r:'90+',c:'#D1FAE5',tc:'#065F46'},{g:'B',r:'75+',c:'#DBEAFE',tc:'#1E40AF'},{g:'C',r:'60+',c:'#FEF9C3',tc:'#78350F'},{g:'D',r:'40+',c:'#FFEDD5',tc:'#9A3412'},{g:'F',r:'0+',c:'#FEE2E2',tc:'#991B1B'}].map(({g,r,c,tc})=>(
+                <div key={g} style={{ background:c, borderRadius:10, padding:'8px 16px', textAlign:'center', display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:18, fontWeight:900, color:tc }}>{g}</span>
+                  <span style={{ fontSize:11, color:tc, opacity:0.75 }}>{r} คะแนน</span>
                 </div>
-                <span style={{ fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background:'#EFF6FF', color:'#3B82F6' }}>20%</span>
-              </div>
-              <h3 style={{ fontSize:16, fontWeight:800, color:'#0F2349', margin:'0 0 6px' }}>Completeness</h3>
-              <p style={{ fontSize:12, color:'#6B7280', lineHeight:1.65, margin:'0 0 16px' }}>ชื่อ คำอธิบาย แท็ก ใบอนุญาต และความถี่การอัปเดต</p>
-              <ScoreBar pct={72} color="#3B82F6" />
+              ))}
             </div>
-
-            {/* Small — Timeliness */}
-            <div className="reveal" data-d="3" style={{ gridColumn:'span 3', background:'linear-gradient(135deg,#1B3A6B,#0F2349)', borderRadius:20, padding:28, border:'none', boxShadow:'0 4px 20px rgba(15,35,73,0.3)', position:'relative', overflow:'hidden', minHeight:200, display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
-              <div>
-                <div style={{ width:42, height:42, borderRadius:12, background:'rgba(139,92,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <h3 style={{ fontSize:16, fontWeight:800, color:'#fff', margin:'0 0 6px' }}>Timeliness</h3>
-                <p style={{ fontSize:11.5, color:'rgba(255,255,255,0.55)', lineHeight:1.65, margin:0 }}>ความทันสมัยเทียบกับความถี่ที่กำหนด</p>
-              </div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:16 }}>
-                <span style={{ fontSize:10, color:'rgba(255,255,255,0.4)', textTransform:'uppercase', letterSpacing:'0.08em' }}>น้ำหนัก</span>
-                <span style={{ fontSize:22, fontWeight:900, color:'#A78BFA' }}>20%</span>
-              </div>
-            </div>
-
-            {/* Small — Accessibility */}
-            <div className="reveal" data-d="2" style={{ gridColumn:'span 3', background:'#fff', borderRadius:20, padding:28, border:'1px solid #E5E7EB', boxShadow:'0 1px 4px rgba(0,0,0,0.05)', position:'relative', overflow:'hidden', minHeight:180 }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'#10B981', borderRadius:'20px 20px 0 0' }}/>
-              <div style={{ width:42, height:42, borderRadius:12, background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              </div>
-              <h3 style={{ fontSize:15, fontWeight:800, color:'#0F2349', margin:'0 0 4px' }}>Accessibility</h3>
-              <p style={{ fontSize:11.5, color:'#6B7280', lineHeight:1.65, margin:'0 0 12px' }}>ดาวน์โหลดได้จริง ผ่าน HTTP</p>
-              <span style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:100, background:'#ECFDF5', color:'#10B981' }}>15% น้ำหนัก</span>
-            </div>
-
-            {/* Small — Machine Readable */}
-            <div className="reveal" data-d="3" style={{ gridColumn:'span 4', background:'#FFFBEB', borderRadius:20, padding:28, border:'1px solid #FDE68A', boxShadow:'0 1px 4px rgba(0,0,0,0.04)', position:'relative', overflow:'hidden', minHeight:180 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
-                <div style={{ width:42, height:42, borderRadius:12, background:'rgba(245,158,11,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.58 4 8 4s8-1.79 8-4M4 7c0-2.21 3.58-4 8-4s8 1.79 8 4"/></svg>
-                </div>
-                <span style={{ fontSize:11, fontWeight:800, padding:'3px 10px', borderRadius:100, background:'rgba(245,158,11,0.15)', color:'#D97706' }}>20%</span>
-              </div>
-              <h3 style={{ fontSize:15, fontWeight:800, color:'#92400E', margin:'0 0 4px' }}>Machine Readable</h3>
-              <p style={{ fontSize:11.5, color:'#78350F', lineHeight:1.65, margin:'0 0 14px' }}>CSV / XLSX / JSON vs PDF / DOC</p>
-              <ScoreBar pct={64} color="#F59E0B" />
-            </div>
-
-            {/* Grade scale card */}
-            <div className="reveal" data-d="4" style={{ gridColumn:'span 5', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', borderRadius:20, padding:28, boxShadow:'0 8px 32px rgba(59,130,246,0.25)', minHeight:180 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.7)', letterSpacing:'0.08em', textTransform:'uppercase', margin:'0 0 16px' }}>เกณฑ์คะแนน</p>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
-                {[{g:'A',r:'90+',c:'#D1FAE5',tc:'#065F46'},{g:'B',r:'75+',c:'#DBEAFE',tc:'#1E40AF'},{g:'C',r:'60+',c:'#FEF9C3',tc:'#78350F'},{g:'D',r:'40+',c:'#FFEDD5',tc:'#9A3412'},{g:'F',r:'0+',c:'#FEE2E2',tc:'#991B1B'}].map(({g,r,c,tc})=>(
-                  <div key={g} style={{ background:c, borderRadius:10, padding:'10px 4px', textAlign:'center' }}>
-                    <div style={{ fontSize:20, fontWeight:900, color:tc }}>{g}</div>
-                    <div style={{ fontSize:9, color:tc, opacity:0.75, marginTop:1 }}>{r}</div>
-                  </div>
-                ))}
-              </div>
-              <p style={{ fontSize:11, color:'rgba(255,255,255,0.55)', margin:'14px 0 0', textAlign:'center' }}>คะแนนเต็ม 100 คะแนน รวม 5 มิติ</p>
-            </div>
+            <p style={{ fontSize:11, color:'rgba(255,255,255,0.55)', margin:0, flexShrink:0 }}>คะแนนเต็ม 100 รวม 5 มิติ</p>
           </div>
         </div>
       </section>
@@ -572,20 +558,6 @@ export default function LandingPage() {
 }
 
 /* ── Mini components ── */
-function ScoreBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <div>
-      <div style={{ height:5, background:'#F3F4F6', borderRadius:3, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:`${pct}%`, background:color, borderRadius:3 }}/>
-      </div>
-      <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-        <span style={{ fontSize:10, color:'#9CA3AF' }}>คะแนนเฉลี่ย</span>
-        <span style={{ fontSize:10, fontWeight:700, color }}>{pct}</span>
-      </div>
-    </div>
-  )
-}
-
 function TableCard({ title, rows, showTime }: { title: string; rows: DatasetStat[]; showTime?: boolean }) {
   const GRADE_CLS2: Record<string,string> = {
     A:'bg-emerald-100 text-emerald-700 border-emerald-200',
