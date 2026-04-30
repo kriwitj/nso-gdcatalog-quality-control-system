@@ -204,7 +204,7 @@ async function upsertPackage(pkg: any, ckanSourceId: string | null) {
       isOpen: pkg.isopen === true,
     },
     update: {
-      organizationId: orgId, ckanSourceId,
+      organizationId: orgId,
       title: str(pkg.title), notes: str(pkg.notes),
       license: str(pkg.license_title), tags, groups,
       updateFrequency: str(pkg.update_frequency),
