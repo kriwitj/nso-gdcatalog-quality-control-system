@@ -16,7 +16,7 @@ interface Stats {
   timelinessDistribution: { status: string; label: string; count: number }[]
   topDatasets: { id: string; title: string; overallScore: number | null; qualityGrade: string | null; organization: { name: string } | null }[]
   lowDatasets:  { id: string; title: string; overallScore: number | null; qualityGrade: string | null; organization: { name: string } | null }[]
-  lastSyncAt: string | null
+  syncSources: { id: string; name: string; lastSyncAt: string | null; datasetCount: number; resourceCount: number }[]
   pendingJobs: number
 }
 
@@ -55,10 +55,24 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Sync info */}
-      <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
-        ซิงค์ล่าสุด: {s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
-      </p>
+      {/* Per-source sync info */}
+      {s.syncSources.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {s.syncSources.map(src => (
+            <div key={src.id} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border"
+              style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{src.name}</span>
+              <span style={{ color: 'var(--text-muted)' }}>·</span>
+              <span>{src.datasetCount.toLocaleString()} ชุดข้อมูล · {src.resourceCount.toLocaleString()} ทรัพยากร</span>
+              <span style={{ color: 'var(--text-muted)' }}>·</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                ซิงค์ล่าสุด: {src.lastSyncAt ? new Date(src.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Top stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

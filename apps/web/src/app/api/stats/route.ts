@@ -113,8 +113,15 @@ export async function GET(req: NextRequest) {
   const scopeFilter = await getScopeFilter(req)
   const hasScope    = Object.keys(scopeFilter).length > 0
 
-  // ดึง DB stats และ CKAN org count พร้อมกัน
-  const [dbResults, ckanOrgCount] = await Promise.all([
+  // หา sourceWhere ตาม scope เพื่อ query per-source stats
+  let sourceWhere: Prisma.CkanSourceWhereInput = { isActive: true }
+  const scopeSourceId = (scopeFilter as { ckanSourceId?: { in: string[] } }).ckanSourceId
+  if (scopeSourceId && 'in' in scopeSourceId && scopeSourceId.in.length > 0) {
+    sourceWhere = { ...sourceWhere, id: { in: scopeSourceId.in } }
+  }
+
+  // ดึง DB stats, CKAN org count, และ per-source info พร้อมกัน
+  const [dbResults, ckanOrgCount, sourceRows] = await Promise.all([
     Promise.all([
       prisma.dataset.count({ where: scopeFilter }),
       hasScope
@@ -137,17 +144,32 @@ export async function GET(req: NextRequest) {
         orderBy: { overallScore: 'asc' }, take: 5,
         select: { id: true, title: true, overallScore: true, qualityGrade: true, organization: { select: { name: true } } },
       }),
-      prisma.scanJob.findFirst({ where: { type: 'catalog_sync' }, orderBy: { createdAt: 'desc' } }),
       prisma.scanJob.count({ where: { status: { in: ['pending', 'running'] } } }),
     ]),
     fetchOrganizationCountFromCkan(scopeFilter),
+    prisma.ckanSource.findMany({
+      where:  sourceWhere,
+      select: { id: true, name: true, lastSyncAt: true, _count: { select: { datasets: true } } },
+      orderBy: { name: 'asc' },
+    }),
   ])
 
   const [
     totalDatasets, totalResources, dbOrgCount,
     gradeRows, mrRows, timelinessRows, avgRow,
-    topDatasets, lowDatasets, lastJob, pendingJobs,
+    topDatasets, lowDatasets, pendingJobs,
   ] = dbResults
+
+  // resource count ต่อ source (N queries แต่ N มักน้อย)
+  const syncSources = await Promise.all(
+    sourceRows.map(async s => ({
+      id:           s.id,
+      name:         s.name,
+      lastSyncAt:   s.lastSyncAt,
+      datasetCount: s._count.datasets,
+      resourceCount: await prisma.resource.count({ where: { dataset: { ckanSourceId: s.id } } }),
+    }))
+  )
 
   // ใช้ CKAN org count ถ้าดึงสำเร็จ, fallback เป็น DB count
   const totalOrganizations = ckanOrgCount ?? dbOrgCount
@@ -178,7 +200,7 @@ export async function GET(req: NextRequest) {
       count: timelinessRows.find(r => (r.timelinessStatus ?? 'unknown') === k)?._count ?? 0,
     })),
     topDatasets, lowDatasets,
-    lastSyncAt: lastJob?.finishedAt ?? null,
+    syncSources,
     pendingJobs,
   }))
 }

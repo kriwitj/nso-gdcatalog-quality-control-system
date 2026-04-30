@@ -133,6 +133,13 @@ async function runSync(jobId: string, targets: SyncTarget[]) {
         }
       }
       totalDone += done
+
+      if (target.id) {
+        await prisma.ckanSource.update({
+          where: { id: target.id },
+          data:  { lastSyncAt: new Date() },
+        }).catch(e => console.error(`[sync] update lastSyncAt failed: ${e}`))
+      }
     }
 
     const summary = errors.length > 0
