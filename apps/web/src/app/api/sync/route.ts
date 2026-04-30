@@ -199,7 +199,7 @@ async function upsertPackage(pkg: any, ckanSourceId: string | null) {
   const groups = safeNames(pkg.groups)
 
   const dataset = await prisma.dataset.upsert({
-    where:  { ckanId: pkg.id },
+    where:  { ckanId_ckanSourceId: { ckanId: pkg.id, ckanSourceId: ckanSourceId ?? '' } },
     create: {
       ckanId: pkg.id, organizationId: orgId, name: pkg.name,
       ckanSourceId,
@@ -225,7 +225,7 @@ async function upsertPackage(pkg: any, ckanSourceId: string | null) {
   for (const res of resources) {
     if (!res?.id) continue
     await prisma.resource.upsert({
-      where:  { ckanId: res.id },
+      where:  { ckanId_packageId: { ckanId: res.id, packageId: dataset.id } },
       create: {
         ckanId: res.id, packageId: dataset.id,
         name: str(res.name), description: str(res.description),

@@ -24,7 +24,7 @@ model Organization {
 // ─── Datasets ────────────────────────────────────────────────────
 model Dataset {
   id               String        @id @default(uuid())
-  ckanId           String        @unique @map("ckan_id")
+  ckanId           String        @map("ckan_id")
   organizationId   String?       @map("organization_id")
   organization     Organization? @relation(fields: [organizationId], references: [id])
   name             String
@@ -67,6 +67,7 @@ model Dataset {
   scanJobs     ScanJob[]
   scoreHistory QualityScoreHistory[]
 
+  @@unique([ckanId, ckanSourceId])
   @@index([organizationId])
   @@index([overallScore])
   @@index([qualityGrade])
@@ -78,7 +79,7 @@ model Dataset {
 // ─── Resources ───────────────────────────────────────────────────
 model Resource {
   id               String    @id @default(uuid())
-  ckanId           String    @unique @map("ckan_id")
+  ckanId           String    @map("ckan_id")
   packageId        String    @map("package_id")
   dataset          Dataset   @relation(fields: [packageId], references: [id])
   name             String?
@@ -94,6 +95,7 @@ model Resource {
 
   checks ResourceCheck[]
 
+  @@unique([ckanId, packageId])
   @@index([packageId])
   @@map("resources")
 }
