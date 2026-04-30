@@ -44,16 +44,26 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
     )
   }
 
-  // ป้องกัน sync ซ้อนกัน — ถ้ามี job ประเภทเดียวกันกำลัง running อยู่ ให้ reject
-  const activeSync = await prisma.scanJob.findFirst({
-    where: { type: 'catalog_sync', status: { in: ['running', 'pending'] } },
-    select: { id: true, startedAt: true },
-  })
-  if (activeSync) {
-    return NextResponse.json(
-      { error: `กำลังซิงค์อยู่แล้ว (job: ${activeSync.id.slice(0, 8)}…) กรุณารอให้เสร็จก่อน` },
-      { status: 409 },
-    )
+  // ป้องกัน sync ซ้อนกัน เฉพาะ division เดียวกัน (คนละ division sync พร้อมกันได้)
+  {
+    const sameScopeUserIds = divisionId
+      ? (await prisma.user.findMany({ where: { divisionId }, select: { id: true } })).map(u => u.id)
+      : (await prisma.user.findMany({ where: { role: 'admin' },  select: { id: true } })).map(u => u.id)
+
+    const conflictingSync = await prisma.scanJob.findFirst({
+      where: {
+        type:        'catalog_sync',
+        status:      { in: ['running', 'pending'] },
+        triggeredBy: { in: sameScopeUserIds },
+      },
+      select: { id: true },
+    })
+    if (conflictingSync) {
+      return NextResponse.json(
+        { error: `กำลังซิงค์อยู่แล้ว (job: ${conflictingSync.id.slice(0, 8)}…) กรุณารอให้เสร็จก่อน` },
+        { status: 409 },
+      )
+    }
   }
 
   const syncTargets = sources.map(s => ({
