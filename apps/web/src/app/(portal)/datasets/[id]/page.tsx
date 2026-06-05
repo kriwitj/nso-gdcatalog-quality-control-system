@@ -83,12 +83,16 @@ export default function DatasetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<DatasetDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scanning,        setScanning]        = useState(false)
-  const [syncing,         setSyncing]         = useState(false)
-  const [msg,             setMsg]             = useState('')
-  const [confirmOpen,     setConfirmOpen]     = useState(false)
-  const [syncConfirmOpen, setSyncConfirmOpen] = useState(false)
+  const [scanning,              setScanning]              = useState(false)
+  const [syncing,               setSyncing]               = useState(false)
+  const [syncAndScanning,       setSyncAndScanning]       = useState(false)
+  const [msg,                   setMsg]                   = useState('')
+  const [confirmOpen,           setConfirmOpen]           = useState(false)
+  const [syncConfirmOpen,       setSyncConfirmOpen]       = useState(false)
+  const [syncAndScanConfirm,    setSyncAndScanConfirm]    = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const isBusy = scanning || syncing || syncAndScanning
 
   const loadData = useCallback(() => {
     fetch(`/api/datasets/${id}`)
@@ -111,41 +115,37 @@ export default function DatasetDetailPage() {
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  function pollJobUntilDone(jobId: string, setWorking: (v: boolean) => void, doneMsg: string) {
+  // คืน true=สำเร็จ, false=error/timeout
+  function waitForJob(jobId: string): Promise<{ ok: boolean; errorMsg?: string }> {
     if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = setInterval(async () => {
-      try {
-        const r = await apiFetch(`/api/jobs/${jobId}`)
-        if (!r.ok) return
-        const job = await r.json()
-        if (job.status === 'done') {
-          clearInterval(pollRef.current!)
-          pollRef.current = null
-          setWorking(false)
-          setMsg(doneMsg)
-          loadData()
-        } else if (job.status === 'error') {
-          clearInterval(pollRef.current!)
-          pollRef.current = null
-          setWorking(false)
-          setMsg(`เกิดข้อผิดพลาด: ${job.errorMsg || 'ไม่ทราบสาเหตุ'}`)
-        }
-      } catch { /* ปล่อยให้ลองใหม่รอบหน้า */ }
-    }, 3000)
+    return new Promise(resolve => {
+      let failCount = 0, ticks = 0
+      pollRef.current = setInterval(async () => {
+        ticks++
+        if (ticks > 120) { clearInterval(pollRef.current!); pollRef.current = null; resolve({ ok: false, errorMsg: 'หมดเวลารอ — กรุณาตรวจสอบที่หน้างานตรวจสอบ' }); return }
+        try {
+          const r = await apiFetch(`/api/jobs/${jobId}`)
+          if (!r.ok) { failCount++; if (failCount >= 10) { clearInterval(pollRef.current!); pollRef.current = null; resolve({ ok: false, errorMsg: 'ไม่สามารถตรวจสอบสถานะได้' }) }; return }
+          failCount = 0
+          const job = await r.json()
+          if (job.status === 'done') { clearInterval(pollRef.current!); pollRef.current = null; resolve({ ok: true }) }
+          else if (job.status === 'error') { clearInterval(pollRef.current!); pollRef.current = null; resolve({ ok: false, errorMsg: job.errorMsg || 'ไม่ทราบสาเหตุ' }) }
+        } catch { failCount++; if (failCount >= 10) { clearInterval(pollRef.current!); pollRef.current = null; resolve({ ok: false, errorMsg: 'ไม่สามารถตรวจสอบสถานะได้' }) } }
+      }, 3000)
+    })
   }
 
   async function doScan() {
     setConfirmOpen(false)
     setScanning(true); setMsg('⏳ กำลังตรวจสอบ...')
     try {
-      const r = await apiFetch('/api/scan', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ datasetId: id }),
-      })
+      const r = await apiFetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datasetId: id }) })
       const d = await r.json()
       if (!r.ok) { setMsg(d.error || 'เกิดข้อผิดพลาด'); setScanning(false); return }
-      pollJobUntilDone(d.jobId, setScanning, '✓ ตรวจสอบเสร็จสิ้น — อัปเดตข้อมูลแล้ว')
+      const { ok, errorMsg } = await waitForJob(d.jobId)
+      setScanning(false)
+      setMsg(ok ? '✓ ตรวจสอบเสร็จสิ้น — อัปเดตข้อมูลแล้ว' : `เกิดข้อผิดพลาด: ${errorMsg}`)
+      if (ok) loadData()
     } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)); setScanning(false) }
   }
 
@@ -153,15 +153,39 @@ export default function DatasetDetailPage() {
     setSyncConfirmOpen(false)
     setSyncing(true); setMsg('⏳ กำลังซิงก์...')
     try {
-      const r = await apiFetch('/api/sync', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ datasetId: id }),
-      })
+      const r = await apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datasetId: id }) })
       const d = await r.json()
       if (!r.ok) { setMsg(d.error || 'เกิดข้อผิดพลาด'); setSyncing(false); return }
-      pollJobUntilDone(d.jobId, setSyncing, '✓ ซิงก์เสร็จสิ้น — อัปเดตข้อมูลแล้ว')
+      const { ok, errorMsg } = await waitForJob(d.jobId)
+      setSyncing(false)
+      setMsg(ok ? '✓ ซิงก์เสร็จสิ้น — อัปเดตข้อมูลแล้ว' : `เกิดข้อผิดพลาด: ${errorMsg}`)
+      if (ok) loadData()
     } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)); setSyncing(false) }
+  }
+
+  async function doSyncThenScan() {
+    setSyncAndScanConfirm(false)
+    setSyncAndScanning(true)
+    try {
+      // ขั้น 1: Sync
+      setMsg('⏳ (1/2) กำลังซิงก์ข้อมูลจาก CKAN...')
+      const syncR = await apiFetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datasetId: id }) })
+      const syncD = await syncR.json()
+      if (!syncR.ok) { setMsg(syncD.error || 'ซิงก์ไม่สำเร็จ'); setSyncAndScanning(false); return }
+      const syncResult = await waitForJob(syncD.jobId)
+      if (!syncResult.ok) { setMsg(`ซิงก์ไม่สำเร็จ: ${syncResult.errorMsg}`); setSyncAndScanning(false); return }
+      loadData()
+
+      // ขั้น 2: Scan
+      setMsg('⏳ (2/2) กำลังตรวจสอบคุณภาพ...')
+      const scanR = await apiFetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datasetId: id }) })
+      const scanD = await scanR.json()
+      if (!scanR.ok) { setMsg(scanD.error || 'ตรวจสอบไม่สำเร็จ'); setSyncAndScanning(false); return }
+      const scanResult = await waitForJob(scanD.jobId)
+      setSyncAndScanning(false)
+      setMsg(scanResult.ok ? '✓ ซิงก์และตรวจสอบเสร็จสิ้น — อัปเดตข้อมูลแล้ว' : `ตรวจสอบไม่สำเร็จ: ${scanResult.errorMsg}`)
+      if (scanResult.ok) loadData()
+    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)); setSyncAndScanning(false) }
   }
 
   function handleDownload(format: 'csv' | 'xlsx') {
@@ -271,11 +295,14 @@ export default function DatasetDetailPage() {
             </a>
           )}
           <ExportButton onExport={handleDownload} />
-          <button onClick={() => setSyncConfirmOpen(true)} disabled={syncing || scanning} className="btn-secondary text-xs">
-            {syncing ? '⏳ กำลังซิงก์...' : '🔄 ซิงก์ข้อมูล'}
+          <button onClick={() => setSyncConfirmOpen(true)} disabled={isBusy} className="btn-secondary text-xs">
+            {syncing ? '⏳ กำลังซิงก์...' : '🔄 ซิงก์'}
           </button>
-          <button onClick={() => setConfirmOpen(true)} disabled={scanning || syncing} className="btn-primary text-xs">
+          <button onClick={() => setConfirmOpen(true)} disabled={isBusy} className="btn-secondary text-xs">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
+          </button>
+          <button onClick={() => setSyncAndScanConfirm(true)} disabled={isBusy} className="btn-primary text-xs">
+            {syncAndScanning ? msg.includes('1/2') ? '⏳ ซิงก์...' : '⏳ ตรวจสอบ...' : '🔄▶ ซิงก์และตรวจสอบ'}
           </button>
         </div>
       </div>
@@ -295,6 +322,14 @@ export default function DatasetDetailPage() {
         confirmLabel="🔄 เริ่มซิงก์"
         onConfirm={doSync}
         onCancel={() => setSyncConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={syncAndScanConfirm}
+        title="ยืนยันการซิงก์และตรวจสอบ"
+        message={`ซิงก์ข้อมูลจาก CKAN แล้วตรวจสอบคุณภาพต่อทันทีสำหรับ "${data.title || data.name}" ใช่หรือไม่?`}
+        confirmLabel="🔄▶ เริ่มซิงก์และตรวจสอบ"
+        onConfirm={doSyncThenScan}
+        onCancel={() => setSyncAndScanConfirm(false)}
       />
 
       {msg && (

@@ -4,6 +4,24 @@ import { withAuth } from '@/lib/withAuth'
 
 export const dynamic = 'force-dynamic'
 
+// GET /api/jobs/:id — ดูสถานะ job
+export const GET = withAuth(async (
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) => {
+  const { id } = await params
+  const job = await prisma.scanJob.findUnique({
+    where:  { id },
+    select: {
+      id: true, type: true, status: true,
+      totalItems: true, doneItems: true, errorItems: true,
+      startedAt: true, finishedAt: true, errorMsg: true,
+    },
+  })
+  if (!job) return NextResponse.json({ error: 'ไม่พบ job' }, { status: 404 })
+  return NextResponse.json(job)
+})
+
 // PATCH /api/jobs/:id  { action: 'complete' | 'cancel' }
 // force-close a stuck job — admin only
 export const PATCH = withAuth(async (
