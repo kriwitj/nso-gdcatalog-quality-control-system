@@ -27,6 +27,7 @@ export interface ResourceCheckJob {
   metadataModified: string | null
   updateFrequency: string | null
   datasetResourceCount: number  // จำนวน resource ทั้งหมดของ dataset นี้
+  ckanApiKey?: string | null    // API key สำหรับ private resource
 }
 
 export interface ScoreCalcJob {

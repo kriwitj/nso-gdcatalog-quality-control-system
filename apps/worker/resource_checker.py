@@ -135,6 +135,7 @@ def check_resource(
     resource_format: Optional[str],
     metadata_modified: Optional[str],
     update_frequency: Optional[str],
+    api_key: Optional[str] = None,
 ) -> dict:
     t0 = time.time()
     result: dict = {
@@ -167,6 +168,8 @@ def check_resource(
     try:
         # ── 2. HTTP HEAD check ────────────────────────────────────
         headers = {"User-Agent": "OGD-Quality-System/1.0 (quality check)"}
+        if api_key:
+            headers["Authorization"] = api_key
         try:
             head = requests.head(resource_url, headers=headers, timeout=15, allow_redirects=True)
             result["http_status"] = head.status_code

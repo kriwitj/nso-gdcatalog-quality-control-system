@@ -50,6 +50,7 @@ def handle_resource_check(payload: dict):
             resource_format=payload.get("resourceFormat"),
             metadata_modified=payload.get("metadataModified"),
             update_frequency=payload.get("updateFrequency"),
+            api_key=payload.get("ckanApiKey") or None,
         )
 
         conn = get_conn()

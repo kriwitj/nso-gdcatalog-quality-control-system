@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { enqueueResourceCheck } from '@/lib/queue'
 import { withAuth } from '@/lib/withAuth'
+import { tryDecryptField } from '@/lib/encryption'
 import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,7 @@ type ResourceRow = {
 
 type DatasetRow = {
   id: string; ckanId: string; updateFrequency: string | null; ckanSourceId: string | null
+  ckanSource: { apiKey: string | null } | null
   resources: ResourceRow[]
 }
 
@@ -51,7 +53,12 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
       select: {
         id: true, ckanId: true, url: true,
         format: true, metadataModified: true, packageId: true,
-        dataset: { select: { id: true, ckanId: true, updateFrequency: true, ckanSourceId: true } },
+        dataset: {
+          select: {
+            id: true, ckanId: true, updateFrequency: true, ckanSourceId: true,
+            ckanSource: { select: { apiKey: true } },
+          },
+        },
       },
     })
     if (!resource || !resource.url) {
@@ -84,6 +91,7 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
       metadataModified:     resource.metadataModified?.toISOString() ?? null,
       updateFrequency:      resource.dataset.updateFrequency,
       datasetResourceCount: 1,
+      ckanApiKey:           tryDecryptField(resource.dataset.ckanSource?.apiKey),
     })
 
     return NextResponse.json({
@@ -115,6 +123,7 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
   const datasets = await prisma.dataset.findMany({
     where,
     include: {
+      ckanSource: { select: { apiKey: true } },
       resources: {
         select: { id: true, ckanId: true, url: true, format: true, metadataModified: true, packageId: true },
       },
@@ -159,6 +168,7 @@ export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
         metadataModified:     resource.metadataModified?.toISOString() ?? null,
         updateFrequency:      dataset.updateFrequency,
         datasetResourceCount: resources.length,
+        ckanApiKey:           tryDecryptField((dataset as DatasetRow).ckanSource?.apiKey),
       })
       enqueued++
     }
