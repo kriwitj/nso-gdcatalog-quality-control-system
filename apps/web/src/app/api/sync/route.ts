@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { fetchAllPackages } from '@/lib/ckan'
+import { fetchAllPackages, fetchPackage } from '@/lib/ckan'
 import { withAuth } from '@/lib/withAuth'
 import { Prisma } from '@prisma/client'
 import { tryDecryptField } from '@/lib/encryption'
@@ -10,8 +10,61 @@ export const dynamic = 'force-dynamic'
 // POST /api/sync — ต้อง login ระดับ admin หรือ editor
 // Non-admin: sync ได้เฉพาะ CkanSource ของ ศูนย์/กอง ตัวเอง
 export const POST = withAuth(async (req: NextRequest, { user: caller }) => {
-  let body: { sourceId?: string } = {}
+  let body: { sourceId?: string; datasetId?: string } = {}
   try { body = await req.json() } catch {}
+
+  // ─── Single-dataset sync ───────────────────────────────────────────
+  if (body.datasetId) {
+    const dataset = await prisma.dataset.findUnique({
+      where: { id: body.datasetId },
+      include: { ckanSource: true },
+    })
+    if (!dataset) {
+      return NextResponse.json({ error: 'ไม่พบชุดข้อมูล' }, { status: 404 })
+    }
+    if (!dataset.ckanSource?.isActive) {
+      return NextResponse.json({ error: 'ไม่พบ CKAN source หรือ source ถูกปิดใช้งาน' }, { status: 404 })
+    }
+
+    // Non-admin: ตรวจสิทธิ์ว่า source อยู่ใน division ของตัวเอง
+    if (caller.role !== 'admin') {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: caller.userId },
+        select: { divisionId: true },
+      })
+      if (!dbUser?.divisionId || dataset.ckanSource.divisionId !== dbUser.divisionId) {
+        return NextResponse.json({ error: 'ไม่มีสิทธิ์ซิงก์ชุดข้อมูลนี้' }, { status: 403 })
+      }
+    }
+
+    const source = dataset.ckanSource
+    const apiKey = tryDecryptField(source.apiKey) ?? undefined
+
+    const job = await prisma.scanJob.create({
+      data: {
+        type: 'catalog_sync',
+        status: 'running',
+        totalItems: 1,
+        startedAt: new Date(),
+        triggeredBy: caller.userId,
+        datasetId: dataset.id,
+      },
+    })
+
+    runSyncSingle(job.id, dataset.ckanId, { id: source.id, url: source.url, apiKey }).catch(err => {
+      console.error('[sync-single] fatal:', err)
+      prisma.scanJob.update({
+        where: { id: job.id },
+        data: { status: 'error', errorMsg: String(err), finishedAt: new Date() },
+      }).catch(console.error)
+    })
+
+    return NextResponse.json({
+      ok: true,
+      jobId: job.id,
+      message: `เริ่มซิงก์ชุดข้อมูล "${dataset.title || dataset.name}" แล้ว`,
+    })
+  }
 
   // Non-admin: ตรวจสอบ ศูนย์/กอง และ จำกัด scope
   let divisionId: string | null = null
@@ -107,6 +160,31 @@ export const GET = withAuth(async () => {
 })
 
 // ─── Sync logic ───────────────────────────────────────────────────
+
+async function runSyncSingle(
+  jobId: string,
+  ckanId: string,
+  source: { id: string; url: string; apiKey?: string },
+) {
+  try {
+    const pkg = await fetchPackage(ckanId, { baseUrl: source.url, apiKey: source.apiKey })
+    await upsertPackage(pkg, source.id)
+    await prisma.ckanSource.update({
+      where: { id: source.id },
+      data: { lastSyncAt: new Date() },
+    }).catch(e => console.error(`[sync-single] update lastSyncAt failed: ${e}`))
+    await prisma.scanJob.update({
+      where: { id: jobId },
+      data: { status: 'done', doneItems: 1, finishedAt: new Date() },
+    })
+  } catch (err) {
+    await prisma.scanJob.update({
+      where: { id: jobId },
+      data: { status: 'error', errorMsg: String(err), finishedAt: new Date() },
+    })
+    throw err
+  }
+}
 
 type SyncTarget = { id: string | null; name: string; url: string; apiKey?: string }
 

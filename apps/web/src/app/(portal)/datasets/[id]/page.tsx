@@ -83,9 +83,11 @@ export default function DatasetDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<DatasetDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scanning,    setScanning]    = useState(false)
-  const [msg,         setMsg]         = useState('')
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [scanning,        setScanning]        = useState(false)
+  const [syncing,         setSyncing]         = useState(false)
+  const [msg,             setMsg]             = useState('')
+  const [confirmOpen,     setConfirmOpen]     = useState(false)
+  const [syncConfirmOpen, setSyncConfirmOpen] = useState(false)
 
   useEffect(() => {
     setError(null)
@@ -115,6 +117,21 @@ export default function DatasetDetailPage() {
       setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
     } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)) }
     setScanning(false)
+  }
+
+  async function doSync() {
+    setSyncConfirmOpen(false)
+    setSyncing(true); setMsg('')
+    try {
+      const r = await apiFetch('/api/sync', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ datasetId: id }),
+      })
+      const d = await r.json()
+      setMsg(r.ok ? (d.message || 'เริ่มซิงก์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
+    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)) }
+    setSyncing(false)
   }
 
   function handleDownload(format: 'csv' | 'xlsx') {
@@ -224,7 +241,10 @@ export default function DatasetDetailPage() {
             </a>
           )}
           <ExportButton onExport={handleDownload} />
-          <button onClick={() => setConfirmOpen(true)} disabled={scanning} className="btn-primary text-xs">
+          <button onClick={() => setSyncConfirmOpen(true)} disabled={syncing || scanning} className="btn-secondary text-xs">
+            {syncing ? '⏳ กำลังซิงก์...' : '🔄 ซิงก์ข้อมูล'}
+          </button>
+          <button onClick={() => setConfirmOpen(true)} disabled={scanning || syncing} className="btn-primary text-xs">
             {scanning ? '⏳ กำลังตรวจ...' : '▶ ตรวจสอบ'}
           </button>
         </div>
@@ -237,6 +257,14 @@ export default function DatasetDetailPage() {
         confirmLabel="▶ เริ่มตรวจสอบ"
         onConfirm={doScan}
         onCancel={() => setConfirmOpen(false)}
+      />
+      <ConfirmDialog
+        open={syncConfirmOpen}
+        title="ยืนยันการซิงก์ข้อมูล"
+        message={`ซิงก์ข้อมูล Metadata จาก CKAN สำหรับชุดข้อมูล "${data.title || data.name}" ใช่หรือไม่?`}
+        confirmLabel="🔄 เริ่มซิงก์"
+        onConfirm={doSync}
+        onCancel={() => setSyncConfirmOpen(false)}
       />
 
       {msg && (
