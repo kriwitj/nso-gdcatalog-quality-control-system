@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/apiClient'
@@ -88,9 +88,9 @@ export default function DatasetDetailPage() {
   const [msg,             setMsg]             = useState('')
   const [confirmOpen,     setConfirmOpen]     = useState(false)
   const [syncConfirmOpen, setSyncConfirmOpen] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    setError(null)
+  const loadData = useCallback(() => {
     fetch(`/api/datasets/${id}`)
       .then(async r => {
         const text = await r.text()
@@ -104,9 +104,39 @@ export default function DatasetDetailPage() {
       .catch(e => { console.error(e); setError(e.message) })
   }, [id])
 
+  useEffect(() => {
+    setError(null)
+    loadData()
+  }, [loadData])
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+
+  function pollJobUntilDone(jobId: string, setWorking: (v: boolean) => void, doneMsg: string) {
+    if (pollRef.current) clearInterval(pollRef.current)
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await apiFetch(`/api/jobs/${jobId}`)
+        if (!r.ok) return
+        const job = await r.json()
+        if (job.status === 'done') {
+          clearInterval(pollRef.current!)
+          pollRef.current = null
+          setWorking(false)
+          setMsg(doneMsg)
+          loadData()
+        } else if (job.status === 'error') {
+          clearInterval(pollRef.current!)
+          pollRef.current = null
+          setWorking(false)
+          setMsg(`เกิดข้อผิดพลาด: ${job.errorMsg || 'ไม่ทราบสาเหตุ'}`)
+        }
+      } catch { /* ปล่อยให้ลองใหม่รอบหน้า */ }
+    }, 3000)
+  }
+
   async function doScan() {
     setConfirmOpen(false)
-    setScanning(true); setMsg('')
+    setScanning(true); setMsg('⏳ กำลังตรวจสอบ...')
     try {
       const r = await apiFetch('/api/scan', {
         method:  'POST',
@@ -114,14 +144,14 @@ export default function DatasetDetailPage() {
         body:    JSON.stringify({ datasetId: id }),
       })
       const d = await r.json()
-      setMsg(r.ok ? (d.message || 'เริ่มตรวจสอบแล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
-    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)) }
-    setScanning(false)
+      if (!r.ok) { setMsg(d.error || 'เกิดข้อผิดพลาด'); setScanning(false); return }
+      pollJobUntilDone(d.jobId, setScanning, '✓ ตรวจสอบเสร็จสิ้น — อัปเดตข้อมูลแล้ว')
+    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)); setScanning(false) }
   }
 
   async function doSync() {
     setSyncConfirmOpen(false)
-    setSyncing(true); setMsg('')
+    setSyncing(true); setMsg('⏳ กำลังซิงก์...')
     try {
       const r = await apiFetch('/api/sync', {
         method:  'POST',
@@ -129,9 +159,9 @@ export default function DatasetDetailPage() {
         body:    JSON.stringify({ datasetId: id }),
       })
       const d = await r.json()
-      setMsg(r.ok ? (d.message || 'เริ่มซิงก์แล้ว') : (d.error || 'เกิดข้อผิดพลาด'))
-    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)) }
-    setSyncing(false)
+      if (!r.ok) { setMsg(d.error || 'เกิดข้อผิดพลาด'); setSyncing(false); return }
+      pollJobUntilDone(d.jobId, setSyncing, '✓ ซิงก์เสร็จสิ้น — อัปเดตข้อมูลแล้ว')
+    } catch (e) { setMsg('เกิดข้อผิดพลาด: ' + String(e)); setSyncing(false) }
   }
 
   function handleDownload(format: 'csv' | 'xlsx') {

@@ -49,9 +49,17 @@ export default function JobsPage() {
 
   useEffect(() => {
     load()
-    const iv = setInterval(load, 5000)
-    return () => clearInterval(iv)
   }, [load])
+
+  // poll เร็ว (5s) เฉพาะตอนมีงานกำลังทำ, ไม่มีงานลด 30s
+  useEffect(() => {
+    const isActive = jobs.some(j => j.status === 'running' || j.status === 'pending')
+      || (queue?.resourceQueue ?? 0) > 0
+      || (queue?.scoreQueue ?? 0) > 0
+    const interval = isActive ? 5000 : 30000
+    const iv = setInterval(load, interval)
+    return () => clearInterval(iv)
+  }, [load, jobs, queue])
 
   async function forceJob(id: string, action: 'complete' | 'cancel') {
     setMsg('')
