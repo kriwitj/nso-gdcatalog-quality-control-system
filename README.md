@@ -92,9 +92,15 @@ docker compose exec web npm run db:seed
 ### 4. ซิงค์และตรวจสอบคุณภาพ
 
 ```bash
-# ซิงค์ข้อมูลจาก CKAN
+# ซิงค์ข้อมูลทั้งหมดจาก CKAN
 curl -X POST http://localhost:3000/api/sync \
   -H "Authorization: Bearer <token>"
+
+# ซิงค์เฉพาะชุดข้อมูลเดียว
+curl -X POST http://localhost:3000/api/sync \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"datasetId": "<id>"}'
 
 # ตรวจสอบคุณภาพ
 curl -X POST http://localhost:3000/api/scan \

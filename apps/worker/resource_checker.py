@@ -169,7 +169,8 @@ def check_resource(
         # ── 2. HTTP HEAD check ────────────────────────────────────
         headers = {"User-Agent": "OGD-Quality-System/1.0 (quality check)"}
         if api_key:
-            headers["Authorization"] = api_key
+            headers["Authorization"] = api_key      # CKAN 2.9+
+            headers["X-CKAN-API-Key"] = api_key     # CKAN 2.6–2.8
         try:
             head = requests.head(resource_url, headers=headers, timeout=15, allow_redirects=True)
             result["http_status"] = head.status_code
