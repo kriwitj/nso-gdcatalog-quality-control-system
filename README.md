@@ -115,8 +115,14 @@ curl -X POST http://localhost:3000/api/scan \
 git clone <repo-url> /opt/ogd-quality
 cd /opt/ogd-quality
 cp .env.example .env && nano .env
+chmod +x ./scripts/*.sh
 ./scripts/deploy.sh
 ```
+
+> **หมายเหตุ:** หลัง `git pull` หรือ `git reset` ทุกครั้ง execute permission ของ scripts จะหายไป ต้องรัน `chmod +x ./scripts/*.sh` ก่อนเสมอ หรือ deploy ผ่าน script เดียวเลย:
+> ```bash
+> chmod +x ./scripts/*.sh && ./scripts/deploy.sh
+> ```
 
 ---
 
