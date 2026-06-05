@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic'
 // GET /api/jobs/:id — ดูสถานะ job
 export const GET = withAuth(async (
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) => {
-  const { id } = await params
+  const { id } = params
   const job = await prisma.scanJob.findUnique({
     where:  { id },
     select: {
