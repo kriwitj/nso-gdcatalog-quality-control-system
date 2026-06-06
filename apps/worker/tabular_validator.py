@@ -1,7 +1,7 @@
 """
 tabular_validator.py — Frictionless v5 compatible
 """
-import os, logging, shutil, tempfile
+import os, json, logging, shutil, tempfile
 from typing import Optional
 import chardet
 
@@ -159,6 +159,60 @@ ERROR_KEYS = [
     "extra-value", "extra-header", "missing-value",
     "format-error", "schema-error", "encoding-error", "source-error",
 ]
+
+
+def validate_json(file_path: str) -> dict:
+    """ตรวจสอบความถูกต้องของ JSON และนับโครงสร้างข้อมูล"""
+    result = {k: 0 for k in ERROR_KEYS}
+    result.update({
+        "encoding": "utf-8", "error": "", "valid": False,
+        "row_count": None, "column_count": None,
+        "error_count": 0, "warning_count": 0,
+        "severity": "ok", "primary_issue": None,
+    })
+
+    enc = _detect_encoding(file_path)
+    result["encoding"] = enc
+
+    try:
+        with open(file_path, "r", encoding=enc, errors="replace") as f:
+            data = json.load(f)
+
+        result["valid"] = True
+
+        if isinstance(data, list):
+            result["row_count"] = len(data)
+            if data and isinstance(data[0], dict):
+                # array of objects — นับ key ของ record แรก
+                result["column_count"] = len(data[0])
+            elif data and isinstance(data[0], list):
+                # array of arrays
+                result["column_count"] = len(data[0])
+        elif isinstance(data, dict):
+            # GeoJSON FeatureCollection
+            features = data.get("features")
+            if isinstance(features, list):
+                result["row_count"] = len(features)
+                if features and isinstance(features[0], dict):
+                    props = features[0].get("properties") or {}
+                    result["column_count"] = len(props) if isinstance(props, dict) else None
+            else:
+                result["column_count"] = len(data)
+
+    except json.JSONDecodeError as e:
+        result["valid"] = False
+        result["format-error"] = 1
+        result["error_count"] = 1
+        result["error"] = f"Invalid JSON: {str(e)[:300]}"
+    except Exception as e:
+        result["valid"] = False
+        result["source-error"] = 1
+        result["error_count"] = 1
+        result["error"] = f"Read error: {str(e)[:300]}"
+
+    result["severity"]      = _severity(result)
+    result["primary_issue"] = _primary_issue(result)
+    return result
 
 
 def validate_tabular(file_path: str, fmt: str) -> dict:

@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 import requests
 
-from tabular_validator import validate_tabular
+from tabular_validator import validate_tabular, validate_json
 
 log = logging.getLogger("resource_checker")
 
@@ -247,15 +247,24 @@ def check_resource(
         result["file_size"] = downloaded
         result["partial_scan"] = partial
 
-        # ── 5. Tabular validation ─────────────────────────────────
+        # ── 5. Tabular / JSON validation ──────────────────────────
         if fmt_lower in TABULAR_FORMATS:
             vr = validate_tabular(tmp_path, fmt_lower)
-            result["encoding"]       = vr.get("encoding")
-            result["row_count"]      = vr.get("row_count")
-            result["column_count"]   = vr.get("column_count")
-            result["is_valid"]       = vr.get("valid")
-            result["error_count"]    = vr.get("error_count", 0)
-            result["warning_count"]  = vr.get("warning_count", 0)
+            result["encoding"]        = vr.get("encoding")
+            result["row_count"]       = vr.get("row_count")
+            result["column_count"]    = vr.get("column_count")
+            result["is_valid"]        = vr.get("valid")
+            result["error_count"]     = vr.get("error_count", 0)
+            result["warning_count"]   = vr.get("warning_count", 0)
+            result["validity_report"] = vr
+        elif fmt_lower in ("json", "geojson", "jsonl", "ndjson"):
+            vr = validate_json(tmp_path)
+            result["encoding"]        = vr.get("encoding")
+            result["row_count"]       = vr.get("row_count")
+            result["column_count"]    = vr.get("column_count")
+            result["is_valid"]        = vr.get("valid")
+            result["error_count"]     = vr.get("error_count", 0)
+            result["warning_count"]   = vr.get("warning_count", 0)
             result["validity_report"] = vr
 
     except Exception as e:
