@@ -342,12 +342,23 @@ def validate_tabular(file_path: str, fmt: str) -> dict:
 
     except Exception as e:
         log.warning(f"Frictionless error: {e}")
-        # ไม่สามารถ validate ได้ — ทิ้ง valid=None (is_valid จะเป็น null ใน DB)
-        # ไม่ set valid=True แม้ pandas อ่านได้ เพราะยังไม่ได้ตรวจจริง
-        result["valid"]       = None
-        result["source-error"] = 1
-        result["error"]        = f"Validation failed: {str(e)[:300]}"
-        result["error_count"]  = 1
+        err_msg = str(e).lower()
+        # กรณี frictionless อ่าน Excel ไม่ได้ แต่ pandas อ่านได้ → ถือว่า valid
+        # (เช่น XLS เก่า renamed เป็น .xlsx, หรือ frictionless engine ไม่รองรับ)
+        if row_count is not None and (
+            "invalid excel" in err_msg or
+            "not a zip file" in err_msg or
+            "openpyxl" in err_msg or
+            "xlrd" in err_msg
+        ):
+            result["valid"]         = True
+            result["warning_count"] = 1
+            result["error"]         = f"Frictionless ไม่รองรับรูปแบบนี้ แต่ pandas อ่านได้ ({str(e)[:150]})"
+        else:
+            result["valid"]        = None
+            result["source-error"] = 1
+            result["error"]        = f"Validation failed: {str(e)[:300]}"
+            result["error_count"]  = 1
     finally:
         os.chdir(orig_cwd)
         if local_copy and os.path.exists(local_copy):
