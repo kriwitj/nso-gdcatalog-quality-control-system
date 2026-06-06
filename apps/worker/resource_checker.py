@@ -139,6 +139,41 @@ def compute_timeliness(metadata_modified: Optional[str], update_frequency: Optio
     return "outdated"
 
 
+def _probe_real_content(url: str, headers: dict) -> bool:
+    """GET ดู 512 bytes แรก — คืน True ถ้าไม่ใช่ HTML (น่าจะเป็นไฟล์จริง)"""
+    # Magic bytes ของไฟล์ที่รองรับ
+    MAGIC = {
+        b"PK\x03\x04": "zip/xlsx/ods",   # ZIP container (XLSX, ODS, DOCX)
+        b"\xd0\xcf\x11\xe0": "xls",       # Compound Document (XLS)
+        b"%PDF": "pdf",
+        b"\x89PNG": "png",
+        b"\xff\xd8\xff": "jpeg",
+    }
+    HTML_STARTS = (b"<!doctype", b"<html", b"<head", b"<?xml")
+    try:
+        probe = requests.get(url, headers={**headers, "Range": "bytes=0-511"},
+                             timeout=10, allow_redirects=True, stream=True, verify=False)
+        chunk = b""
+        for c in probe.iter_content(512):
+            chunk += c
+            if len(chunk) >= 512:
+                break
+        if not chunk:
+            return False
+        chunk_lower = chunk[:20].lower()
+        # ถ้าขึ้นต้นด้วย HTML tag → เป็น HTML จริง
+        if any(chunk_lower.startswith(h) for h in HTML_STARTS):
+            return False
+        # ถ้า match magic bytes → เป็นไฟล์จริง
+        for magic in MAGIC:
+            if chunk.startswith(magic):
+                return True
+        # ไม่แน่ใจ — ถ้าไม่ใช่ HTML ให้ถือว่าพยายาม download ต่อ
+        return True
+    except Exception:
+        return True  # probe ล้มเหลว → ให้ download ต่อตามปกติ
+
+
 def check_resource(
     resource_id: str,
     resource_url: str,
@@ -222,18 +257,22 @@ def check_resource(
             result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
             return result
 
-        # ── ตรวจ content-type mismatch: server คืน HTML แทนไฟล์จริง ──
-        # (เช่น redirect ไป login page, error page, หรือ auth required)
+        # ── ตรวจ content-type mismatch: HEAD คืน text/html แต่อาจเป็นไฟล์จริง ──
+        # บาง server ไม่ implement HEAD ถูกต้อง → ทำ partial GET ดู magic bytes
         ct_lower = (result.get("content_type") or "").lower().split(";")[0].strip()
         fmt_declared = (resource_format or "").lower().strip()
         if ct_lower == "text/html" and fmt_declared not in ("html", "webpage", "web", "link", ""):
-            result["downloadable"]        = False
-            result["structured_status"]   = "unknown"
-            result["is_machine_readable"] = None
-            result["is_structured"]       = None
-            result["error_msg"]           = f"Server คืน text/html แทนไฟล์ {fmt_declared.upper()} (อาจต้อง login หรือ session หมดอายุ)"
-            result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
-            return result
+            is_real_file = _probe_real_content(resource_url, headers)
+            if not is_real_file:
+                result["downloadable"]        = False
+                result["structured_status"]   = "unknown"
+                result["is_machine_readable"] = None
+                result["is_structured"]       = None
+                result["error_msg"]           = f"Server คืน HTML แทนไฟล์ {fmt_declared.upper()} (อาจต้อง login หรือ session หมดอายุ)"
+                result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
+                return result
+            # HEAD ไม่น่าเชื่อถือ — ใช้ detected format จาก declared format แทน
+            result["content_type"] = f"(HEAD unreliable) {result['content_type']}"
 
         result["downloadable"] = True
 
