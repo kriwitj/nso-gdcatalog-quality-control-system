@@ -176,8 +176,10 @@ def check_resource(
     result["timeliness_status"] = compute_timeliness(metadata_modified, update_frequency)
 
     tmp_path = None
+    session = requests.Session()
+    session.verify = False
     try:
-        # ── 2. HTTP HEAD check ────────────────────────────────────
+        # ── 2. HTTP HEAD/GET check ────────────────────────────────
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -188,20 +190,19 @@ def check_resource(
             "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
         }
         if api_key:
-            headers["Authorization"] = api_key      # CKAN 2.9+
-            headers["X-CKAN-API-Key"] = api_key     # CKAN 2.6–2.8
+            headers["Authorization"] = api_key
+            headers["X-CKAN-API-Key"] = api_key
+        session.headers.update(headers)
+
         try:
-            head = requests.head(resource_url, headers=headers, timeout=15, allow_redirects=True)
-            result["http_status"] = head.status_code
+            head = session.head(resource_url, timeout=15, allow_redirects=True)
+            result["http_status"]  = head.status_code
             result["content_type"] = head.headers.get("Content-Type", "")
             cl = head.headers.get("Content-Length")
             if cl:
                 result["file_size"] = int(cl)
             if head.url != resource_url:
                 result["redirect_url"] = head.url
-        except requests.exceptions.SSLError:
-            head = requests.head(resource_url, headers=headers, timeout=15, allow_redirects=True, verify=False)
-            result["http_status"] = head.status_code
         except Exception as e:
             result["downloadable"]        = False
             result["error_msg"]           = f"HEAD failed: {e}"
@@ -248,8 +249,8 @@ def check_resource(
         downloaded = 0
         partial = False
         try:
-            get_resp = requests.get(resource_url, headers=headers, timeout=DOWNLOAD_TIMEOUT,
-                                    allow_redirects=True, stream=True, verify=False)
+            get_resp = session.get(resource_url, timeout=DOWNLOAD_TIMEOUT,
+                                   allow_redirects=True, stream=True)
             with open(tmp_path, "wb") as f:
                 for chunk in get_resp.iter_content(chunk_size=65536):
                     f.write(chunk)
