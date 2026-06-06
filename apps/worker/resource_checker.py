@@ -139,55 +139,6 @@ def compute_timeliness(metadata_modified: Optional[str], update_frequency: Optio
     return "outdated"
 
 
-def _probe_real_content(url: str, base_headers: dict) -> bool:
-    """GET ดู 512 bytes แรกโดยไม่ใช้ Range — คืน True ถ้าไม่ใช่ HTML"""
-    MAGIC_PREFIXES = (
-        b"PK\x03\x04",       # ZIP/XLSX/ODS/DOCX
-        b"\xd0\xcf\x11\xe0", # XLS (Compound Document)
-        b"%PDF",              # PDF
-        b"\x89PNG",           # PNG
-        b"\xff\xd8\xff",      # JPEG
-        b"GIF8",              # GIF
-    )
-    HTML_STARTS = (b"<!doctype", b"<html", b"<head", b"<body", b"<?xml")
-
-    # ใช้ headers เหมือน browser เพื่อให้ server ยอม serve ไฟล์จริง
-    probe_headers = {
-        **base_headers,
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept": "application/octet-stream,*/*;q=0.9",
-        "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
-    }
-    try:
-        probe = requests.get(
-            url, headers=probe_headers,
-            timeout=15, allow_redirects=True,
-            stream=True, verify=False,
-        )
-        chunk = b""
-        for c in probe.iter_content(1024):
-            chunk += c
-            if len(chunk) >= 512:
-                break
-
-        if not chunk:
-            return False
-
-        chunk_lower = chunk[:32].lower()
-        if any(chunk_lower.startswith(h) for h in HTML_STARTS):
-            return False
-        for magic in MAGIC_PREFIXES:
-            if chunk.startswith(magic):
-                return True
-        # ไม่ match magic แต่ก็ไม่ใช่ HTML → ให้ download ต่อ
-        return True
-    except Exception:
-        return True  # probe ล้มเหลว → ให้ download ต่อตามปกติ
-
 
 def check_resource(
     resource_id: str,
@@ -280,23 +231,6 @@ def check_resource(
             result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
             return result
 
-        # ── ตรวจ content-type mismatch: HEAD คืน text/html แต่อาจเป็นไฟล์จริง ──
-        # บาง server ไม่ implement HEAD ถูกต้อง → ทำ partial GET ดู magic bytes
-        ct_lower = (result.get("content_type") or "").lower().split(";")[0].strip()
-        fmt_declared = (resource_format or "").lower().strip()
-        if ct_lower == "text/html" and fmt_declared not in ("html", "webpage", "web", "link", ""):
-            is_real_file = _probe_real_content(resource_url, headers)
-            if not is_real_file:
-                result["downloadable"]        = False
-                result["structured_status"]   = "unknown"
-                result["is_machine_readable"] = None
-                result["is_structured"]       = None
-                result["error_msg"]           = f"Server คืน HTML แทนไฟล์ {fmt_declared.upper()} (อาจต้อง login หรือ session หมดอายุ)"
-                result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
-                return result
-            # HEAD ไม่น่าเชื่อถือ — ใช้ detected format จาก declared format แทน
-            result["content_type"] = f"(HEAD unreliable) {result['content_type']}"
-
         result["downloadable"] = True
 
         # ── 4. Download for tabular/text validation ───────────────
@@ -329,6 +263,23 @@ def check_resource(
             return result
 
         result["file_size"] = downloaded
+
+        # ── ตรวจ bytes แรกของไฟล์ที่ download มา ────────────────────
+        # ถ้า server คืน HTML page (login/error) แทนไฟล์จริง → downloadable=False
+        HTML_MAGIC = (b"<!doctype", b"<html", b"<head", b"<body")
+        try:
+            with open(tmp_path, "rb") as f:
+                first_bytes = f.read(64).lower()
+            if any(first_bytes.startswith(h) for h in HTML_MAGIC):
+                result["downloadable"]        = False
+                result["structured_status"]   = "unknown"
+                result["is_machine_readable"] = None
+                result["is_structured"]       = None
+                result["error_msg"]           = "Server คืน HTML page แทนไฟล์จริง (อาจต้อง login หรือ session หมดอายุ)"
+                result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
+                return result
+        except Exception:
+            pass
         result["partial_scan"] = partial
 
         # ── 5. Tabular / JSON validation ──────────────────────────
