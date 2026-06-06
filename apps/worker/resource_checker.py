@@ -214,13 +214,25 @@ def check_resource(
         result["is_structured"] = result["is_machine_readable"]
 
         if result["http_status"] not in (200, 206):
-            result["downloadable"]       = False
-            result["error_msg"]          = f"HTTP {result['http_status']}"
-            # ไม่สามารถตรวจสอบได้จริง → ไม่ทราบโครงสร้าง
-            result["structured_status"]  = "unknown"
+            result["downloadable"]        = False
+            result["error_msg"]           = f"HTTP {result['http_status']}"
+            result["structured_status"]   = "unknown"
             result["is_machine_readable"] = None
-            result["is_structured"]      = None
-            result["scan_duration_ms"]   = int((time.time() - t0) * 1000)
+            result["is_structured"]       = None
+            result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
+            return result
+
+        # ── ตรวจ content-type mismatch: server คืน HTML แทนไฟล์จริง ──
+        # (เช่น redirect ไป login page, error page, หรือ auth required)
+        ct_lower = (result.get("content_type") or "").lower().split(";")[0].strip()
+        fmt_declared = (resource_format or "").lower().strip()
+        if ct_lower == "text/html" and fmt_declared not in ("html", "webpage", "web", "link", ""):
+            result["downloadable"]        = False
+            result["structured_status"]   = "unknown"
+            result["is_machine_readable"] = None
+            result["is_structured"]       = None
+            result["error_msg"]           = f"Server คืน text/html แทนไฟล์ {fmt_declared.upper()} (อาจต้อง login หรือ session หมดอายุ)"
+            result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
             return result
 
         result["downloadable"] = True
