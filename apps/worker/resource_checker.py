@@ -44,10 +44,13 @@ CONTENT_TYPE_MAP = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     "application/json":                  "json",
     "application/geo+json":              "geojson",
+    "text/json":                         "json",
     "text/xml":                          "xml",
     "application/xml":                   "xml",
     "application/pdf":                   "pdf",
     "application/zip":                   "zip",
+    "text/plain":                        None,  # ต้องพึ่ง declared format
+    "application/octet-stream":          None,  # ต้องพึ่ง declared format
 }
 
 # ─── Timeliness rules (days) ──────────────────────────────────────
@@ -67,8 +70,15 @@ TIMELINESS_RULES = {
 
 def detect_format_from_url(url: str) -> Optional[str]:
     path = url.split("?")[0].split("#")[0]
-    ext = path.rsplit(".", 1)[-1].lower() if "." in path else ""
-    return ext or None
+    # ดึง filename จาก path segment สุดท้ายเท่านั้น (ไม่ใช้ dot ใน domain/path)
+    filename = path.rstrip("/").rsplit("/", 1)[-1]
+    if "." not in filename:
+        return None
+    ext = filename.rsplit(".", 1)[-1].lower()
+    # extension ที่ valid ต้องสั้น (≤5 ตัว) และเป็นตัวอักษรล้วน
+    if ext and len(ext) <= 5 and ext.isalpha():
+        return ext
+    return None
 
 
 def detect_format_from_content_type(ct: str) -> Optional[str]:
