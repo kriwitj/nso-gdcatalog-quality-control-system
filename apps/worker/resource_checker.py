@@ -266,18 +266,38 @@ def check_resource(
         result["file_size"] = downloaded
 
         # ── ตรวจ bytes แรกของไฟล์ที่ download มา ────────────────────
-        # ถ้า server คืน HTML page (login/error) แทนไฟล์จริง → downloadable=False
+        # ถ้า server คืน HTML page แทนไฟล์จริง → ตรวจต่อว่าเป็น WAF หรือ error จริง
         HTML_MAGIC = (b"<!doctype", b"<html", b"<head", b"<body")
         try:
             with open(tmp_path, "rb") as f:
                 first_bytes = f.read(64).lower()
             if any(first_bytes.startswith(h) for h in HTML_MAGIC):
-                result["downloadable"]        = False
-                result["structured_status"]   = "unknown"
-                result["is_machine_readable"] = None
-                result["is_structured"]       = None
-                result["error_msg"]           = "Server คืน HTML page แทนไฟล์จริง (อาจต้อง login หรือ session หมดอายุ)"
-                result["scan_duration_ms"]    = int((time.time() - t0) * 1000)
+                # ตรวจว่าเป็น Imperva/Incapsula WAF bot challenge หรือไม่
+                # (cookies visid_incap_* หรือ incap_ses_* บ่งชี้ว่า WAF กำลัง challenge)
+                cookies_dict = {k.lower(): v for k, v in session.cookies.items()}
+                is_waf = any(
+                    "incap_" in k or "visid_incap" in k
+                    for k in cookies_dict
+                )
+                if is_waf:
+                    # WAF ป้องกัน bot แต่ browser เข้าได้ปกติ
+                    # ใช้ format ที่ประกาศไว้ในระเบียนข้อมูล (detected แล้วก่อนหน้านี้)
+                    result["downloadable"]        = True
+                    result["is_valid"]            = None
+                    result["error_msg"]           = (
+                        "WAF/Imperva bot-protection — เข้าถึงได้จาก browser "
+                        "แต่ไม่สามารถตรวจสอบอัตโนมัติได้"
+                    )
+                else:
+                    result["downloadable"]        = False
+                    result["structured_status"]   = "unknown"
+                    result["is_machine_readable"] = None
+                    result["is_structured"]       = None
+                    result["error_msg"]           = (
+                        "Server คืน HTML page แทนไฟล์จริง "
+                        "(อาจต้อง login หรือ session หมดอายุ)"
+                    )
+                result["scan_duration_ms"] = int((time.time() - t0) * 1000)
                 return result
         except Exception:
             pass
