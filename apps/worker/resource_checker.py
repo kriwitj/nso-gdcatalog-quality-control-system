@@ -139,36 +139,51 @@ def compute_timeliness(metadata_modified: Optional[str], update_frequency: Optio
     return "outdated"
 
 
-def _probe_real_content(url: str, headers: dict) -> bool:
-    """GET ดู 512 bytes แรก — คืน True ถ้าไม่ใช่ HTML (น่าจะเป็นไฟล์จริง)"""
-    # Magic bytes ของไฟล์ที่รองรับ
-    MAGIC = {
-        b"PK\x03\x04": "zip/xlsx/ods",   # ZIP container (XLSX, ODS, DOCX)
-        b"\xd0\xcf\x11\xe0": "xls",       # Compound Document (XLS)
-        b"%PDF": "pdf",
-        b"\x89PNG": "png",
-        b"\xff\xd8\xff": "jpeg",
+def _probe_real_content(url: str, base_headers: dict) -> bool:
+    """GET ดู 512 bytes แรกโดยไม่ใช้ Range — คืน True ถ้าไม่ใช่ HTML"""
+    MAGIC_PREFIXES = (
+        b"PK\x03\x04",       # ZIP/XLSX/ODS/DOCX
+        b"\xd0\xcf\x11\xe0", # XLS (Compound Document)
+        b"%PDF",              # PDF
+        b"\x89PNG",           # PNG
+        b"\xff\xd8\xff",      # JPEG
+        b"GIF8",              # GIF
+    )
+    HTML_STARTS = (b"<!doctype", b"<html", b"<head", b"<body", b"<?xml")
+
+    # ใช้ headers เหมือน browser เพื่อให้ server ยอม serve ไฟล์จริง
+    probe_headers = {
+        **base_headers,
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/octet-stream,*/*;q=0.9",
+        "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
     }
-    HTML_STARTS = (b"<!doctype", b"<html", b"<head", b"<?xml")
     try:
-        probe = requests.get(url, headers={**headers, "Range": "bytes=0-511"},
-                             timeout=10, allow_redirects=True, stream=True, verify=False)
+        probe = requests.get(
+            url, headers=probe_headers,
+            timeout=15, allow_redirects=True,
+            stream=True, verify=False,
+        )
         chunk = b""
-        for c in probe.iter_content(512):
+        for c in probe.iter_content(1024):
             chunk += c
             if len(chunk) >= 512:
                 break
+
         if not chunk:
             return False
-        chunk_lower = chunk[:20].lower()
-        # ถ้าขึ้นต้นด้วย HTML tag → เป็น HTML จริง
+
+        chunk_lower = chunk[:32].lower()
         if any(chunk_lower.startswith(h) for h in HTML_STARTS):
             return False
-        # ถ้า match magic bytes → เป็นไฟล์จริง
-        for magic in MAGIC:
+        for magic in MAGIC_PREFIXES:
             if chunk.startswith(magic):
                 return True
-        # ไม่แน่ใจ — ถ้าไม่ใช่ HTML ให้ถือว่าพยายาม download ต่อ
+        # ไม่ match magic แต่ก็ไม่ใช่ HTML → ให้ download ต่อ
         return True
     except Exception:
         return True  # probe ล้มเหลว → ให้ download ต่อตามปกติ
@@ -212,7 +227,15 @@ def check_resource(
     tmp_path = None
     try:
         # ── 2. HTTP HEAD check ────────────────────────────────────
-        headers = {"User-Agent": "OGD-Quality-System/1.0 (quality check)"}
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "*/*",
+            "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
+        }
         if api_key:
             headers["Authorization"] = api_key      # CKAN 2.9+
             headers["X-CKAN-API-Key"] = api_key     # CKAN 2.6–2.8
