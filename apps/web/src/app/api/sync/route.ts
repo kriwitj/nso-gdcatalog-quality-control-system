@@ -161,6 +161,35 @@ export const GET = withAuth(async () => {
 
 // ─── Sync logic ───────────────────────────────────────────────────
 
+async function purgeResources(resourceIds: string[]) {
+  if (resourceIds.length === 0) return
+  const checks = await prisma.resourceCheck.findMany({
+    where: { resourceId: { in: resourceIds } },
+    select: { id: true },
+  })
+  if (checks.length > 0) {
+    const checkIds = checks.map(c => c.id)
+    await prisma.validityReport.deleteMany({ where: { checkId: { in: checkIds } } })
+    await prisma.resourceCheck.deleteMany({ where: { id: { in: checkIds } } })
+  }
+  await prisma.resource.deleteMany({ where: { id: { in: resourceIds } } })
+}
+
+async function purgeDatasets(datasetIds: string[]) {
+  if (datasetIds.length === 0) return
+  const resources = await prisma.resource.findMany({
+    where: { packageId: { in: datasetIds } },
+    select: { id: true },
+  })
+  await purgeResources(resources.map(r => r.id))
+  await prisma.scanJob.updateMany({
+    where: { datasetId: { in: datasetIds } },
+    data: { datasetId: null },
+  })
+  await prisma.qualityScoreHistory.deleteMany({ where: { datasetId: { in: datasetIds } } })
+  await prisma.dataset.deleteMany({ where: { id: { in: datasetIds } } })
+}
+
 async function runSyncSingle(
   jobId: string,
   ckanId: string,
@@ -221,6 +250,20 @@ async function runSync(jobId: string, targets: SyncTarget[]) {
         }
       }
       totalDone += done
+
+      // ลบ datasets ที่ไม่มีใน CKAN อีกแล้ว (ถูกลบหรือเปลี่ยน source)
+      if (target.id && packages.length > 0) {
+        const fetchedCkanIds = packages.map((p: any) => p.id).filter(Boolean) as string[]
+        const staleDatasets = await prisma.dataset.findMany({
+          where: { ckanSourceId: target.id, ckanId: { notIn: fetchedCkanIds } },
+          select: { id: true },
+        })
+        if (staleDatasets.length > 0) {
+          const staleIds = staleDatasets.map(d => d.id)
+          await purgeDatasets(staleIds)
+          console.log(`[sync] purged ${staleDatasets.length} stale datasets from "${target.name}"`)
+        }
+      }
 
       if (target.id) {
         await prisma.ckanSource.update({
@@ -332,6 +375,16 @@ async function upsertPackage(pkg: any, ckanSourceId: string | null) {
         metadataModified: res.metadata_modified ? new Date(res.metadata_modified) : null,
       },
     })
+  }
+
+  // ลบ resources ที่ถูกลบออกจาก dataset ใน CKAN
+  const fetchedResCkanIds = resources.map((r: any) => r?.id).filter(Boolean) as string[]
+  const staleResources = await prisma.resource.findMany({
+    where: { packageId: dataset.id, ckanId: { notIn: fetchedResCkanIds } },
+    select: { id: true },
+  })
+  if (staleResources.length > 0) {
+    await purgeResources(staleResources.map(r => r.id))
   }
 
   let score = 0
