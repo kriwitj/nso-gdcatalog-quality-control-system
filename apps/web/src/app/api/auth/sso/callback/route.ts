@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  const origin = new URL(req.url).origin
+  // ใช้ origin จาก REDIRECT_URI (ถูกต้องเสมอแม้อยู่หลัง reverse proxy)
+  const origin = new URL(process.env.NSO_SSO_REDIRECT_URI!).origin
 
   if (error) {
     return NextResponse.redirect(`${origin}/login?sso_error=${encodeURIComponent(error)}`)
