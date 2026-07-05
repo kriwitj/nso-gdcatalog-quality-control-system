@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { signAccessToken, signRefreshToken } from '@/lib/auth'
-import { exchangeCode, fetchUserInfo, mapSsoRole } from '@/lib/sso'
+import { exchangeCode, fetchUserInfo } from '@/lib/sso'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const ssoAccessToken = await exchangeCode(code)
     const info = await fetchUserInfo(ssoAccessToken)
 
-    const role = mapSsoRole(info.permissions ?? [], info.role ?? '')
+    const role = 'editor' as const
     const { ministryId, departmentId, divisionId, groupId } = await resolveOrg(info)
 
     // find by sso_sub → หรือ username (employee ID) → หรือสร้างใหม่
