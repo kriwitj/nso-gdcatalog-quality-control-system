@@ -49,6 +49,10 @@ jobs:
           WORKER_CONCURRENCY=${{ secrets.WORKER_CONCURRENCY || '3' }}
           DOWNLOAD_TIMEOUT=${{ secrets.DOWNLOAD_TIMEOUT || '60' }}
           ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+          NSO_SSO_URL=${{ secrets.NSO_SSO_URL || 'https://sso.nso.go.th' }}
+          NSO_SSO_CLIENT_ID=${{ secrets.NSO_SSO_CLIENT_ID }}
+          NSO_SSO_CLIENT_SECRET=${{ secrets.NSO_SSO_CLIENT_SECRET }}
+          NSO_SSO_REDIRECT_URI=${{ secrets.NSO_SSO_REDIRECT_URI }}
           ENVEOF
 
       - name: Deploy with Docker Compose
