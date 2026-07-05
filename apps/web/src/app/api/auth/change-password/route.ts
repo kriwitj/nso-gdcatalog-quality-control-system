@@ -45,6 +45,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'บัญชีผู้ใช้ไม่พร้อมใช้งาน' }, { status: 401 })
     }
 
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: 'บัญชีนี้ใช้ NSO SSO ไม่สามารถเปลี่ยนรหัสผ่านได้' },
+        { status: 400 },
+      )
+    }
+
     const valid = await verifyPassword(currentPassword, user.passwordHash)
     if (!valid) {
       return NextResponse.json({ error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' }, { status: 400 })
