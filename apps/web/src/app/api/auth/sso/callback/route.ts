@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const info = await fetchUserInfo(ssoAccessToken)
 
     const role = mapSsoRole(info.permissions ?? [], info.role ?? '')
-    const { divisionId, groupId } = await resolveOrg(info.branch_code, info.department_code)
+    const { ministryId, departmentId, divisionId, groupId } = await resolveOrg(info)
 
     // find by sso_sub → หรือ username (employee ID) → หรือสร้างใหม่
     let user = await prisma.user.findUnique({ where: { ssoSub: info.sub } })
@@ -47,27 +47,31 @@ export async function GET(req: NextRequest) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          ssoSub:         info.sub,
-          displayName:    info.display_name,
-          email:          info.email ?? undefined,
+          ssoSub:       info.sub,
+          displayName:  info.display_name,
+          email:        info.email ?? undefined,
           role,
-          isActive:       true,
+          isActive:     true,
           ssoAccessToken,
-          divisionId:     divisionId ?? user.divisionId,
-          groupId:        groupId    ?? user.groupId,
+          ministryId:   ministryId  ?? user.ministryId,
+          departmentId: departmentId ?? user.departmentId,
+          divisionId:   divisionId  ?? user.divisionId,
+          groupId:      groupId     ?? user.groupId,
         },
       })
     } else {
       user = await prisma.user.create({
         data: {
-          username:       info.preferred_username,
-          ssoSub:         info.sub,
-          displayName:    info.display_name,
-          email:          info.email ?? null,
-          passwordHash:   null,
+          username:     info.preferred_username,
+          ssoSub:       info.sub,
+          displayName:  info.display_name,
+          email:        info.email ?? null,
+          passwordHash: null,
           role,
-          isActive:       true,
+          isActive:     true,
           ssoAccessToken,
+          ministryId,
+          departmentId,
           divisionId,
           groupId,
         },
@@ -102,25 +106,59 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function resolveOrg(branchCode: string | null, departmentCode: string | null) {
-  let divisionId: string | null = null
-  let groupId:    string | null = null
+const FIXED_MINISTRY   = 'กระทรวงดิจิทัลเพื่อเศรษฐกิจและสังคม'
+const FIXED_DEPARTMENT = 'สำนักงานสถิติแห่งชาติ'
 
-  if (branchCode) {
+async function resolveOrg(info: {
+  branch_code:     string | null
+  branch:          string | null
+  department_code: string | null
+  department:      string | null
+}) {
+  let ministryId:   string | null = null
+  let departmentId: string | null = null
+  let divisionId:   string | null = null
+  let groupId:      string | null = null
+
+  // 1. Ministry (fixed)
+  const ministry = await prisma.ministry.findFirst({
+    where:  { name: FIXED_MINISTRY },
+    select: { id: true },
+  })
+  ministryId = ministry?.id ?? null
+
+  // 2. Department under Ministry (fixed)
+  if (ministryId) {
+    const dept = await prisma.department.findFirst({
+      where:  { ministryId, name: FIXED_DEPARTMENT },
+      select: { id: true },
+    })
+    departmentId = dept?.id ?? null
+  }
+
+  // 3. Division — ค้นหาด้วย code ก่อน ถ้าไม่เจอใช้ชื่อ
+  if (departmentId) {
     const div = await prisma.division.findFirst({
-      where:  { code: branchCode },
+      where: {
+        departmentId,
+        ...(info.branch_code ? { code: info.branch_code } : { name: info.branch ?? '' }),
+      },
       select: { id: true },
     })
     divisionId = div?.id ?? null
   }
 
-  if (departmentCode && divisionId) {
+  // 4. Group — ค้นหาด้วย code ก่อน ถ้าไม่เจอใช้ชื่อ
+  if (divisionId) {
     const grp = await prisma.group.findFirst({
-      where:  { code: departmentCode, divisionId },
+      where: {
+        divisionId,
+        ...(info.department_code ? { code: info.department_code } : { name: info.department ?? '' }),
+      },
       select: { id: true },
     })
     groupId = grp?.id ?? null
   }
 
-  return { divisionId, groupId }
+  return { ministryId, departmentId, divisionId, groupId }
 }
