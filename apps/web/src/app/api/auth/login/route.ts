@@ -33,6 +33,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: "บัญชีนี้ใช้ NSO SSO กรุณาเข้าสู่ระบบผ่านปุ่ม 'เข้าสู่ระบบด้วย NSO Account'" },
+        { status: 401 },
+      );
+    }
+
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(

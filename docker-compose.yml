@@ -56,6 +56,10 @@ services:
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       NODE_ENV: development
+      NSO_SSO_URL: ${NSO_SSO_URL:-https://sso.nso.go.th}
+      NSO_SSO_CLIENT_ID: ${NSO_SSO_CLIENT_ID:-}
+      NSO_SSO_CLIENT_SECRET: ${NSO_SSO_CLIENT_SECRET:-}
+      NSO_SSO_REDIRECT_URI: ${NSO_SSO_REDIRECT_URI:-http://localhost:3000/api/auth/sso/callback}
     ports:
       - "3000:3000"
     volumes:

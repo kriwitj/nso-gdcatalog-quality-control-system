@@ -282,24 +282,28 @@ model CkanSource {
 
 // ─── Auth: Users ─────────────────────────────────────────────────
 model User {
-  id           String      @id @default(uuid())
-  username     String      @unique
-  email        String?     @unique
-  passwordHash String      @map("password_hash")
-  role         String      @default("viewer") // admin/editor/viewer
-  isActive     Boolean     @default(true) @map("is_active")
+  id              String      @id @default(uuid())
+  username        String      @unique
+  email           String?     @unique
+  passwordHash    String?     @map("password_hash")   // nullable สำหรับ SSO-only users
+  role            String      @default("viewer")       // admin/editor/viewer
+  isActive        Boolean     @default(true) @map("is_active")
+  // SSO fields
+  ssoSub          String?     @unique @map("sso_sub")           // NSO SSO UUID (sub claim)
+  displayName     String?     @map("display_name")              // ชื่อ-นามสกุลจาก SSO
+  ssoAccessToken  String?     @map("sso_access_token")          // ใช้ revoke session ตอน logout
   // RBAC scope — ระบุหน่วยงานที่รับผิดชอบ (ระบุระดับเดียวที่เหมาะสม)
-  ministryId   String?     @map("ministry_id")
-  ministry     Ministry?   @relation(fields: [ministryId], references: [id])
-  departmentId String?     @map("department_id")
-  department   Department? @relation(fields: [departmentId], references: [id])
-  divisionId   String?     @map("division_id")
-  division     Division?   @relation(fields: [divisionId], references: [id])
-  groupId      String?     @map("group_id")
-  group        Group?      @relation(fields: [groupId], references: [id])
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
-  refreshTokens RefreshToken[]
+  ministryId      String?     @map("ministry_id")
+  ministry        Ministry?   @relation(fields: [ministryId], references: [id])
+  departmentId    String?     @map("department_id")
+  department      Department? @relation(fields: [departmentId], references: [id])
+  divisionId      String?     @map("division_id")
+  division        Division?   @relation(fields: [divisionId], references: [id])
+  groupId         String?     @map("group_id")
+  group           Group?      @relation(fields: [groupId], references: [id])
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  refreshTokens   RefreshToken[]
 
   @@map("users")
 }

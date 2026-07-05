@@ -1,15 +1,32 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, FormEvent, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  invalid_state:   'การยืนยันตัวตนล้มเหลว (state mismatch) กรุณาลองใหม่',
+  invalid_request: 'คำขอไม่ถูกต้อง กรุณาลองใหม่',
+  sso_failed:      'เกิดข้อผิดพลาดขณะเชื่อมต่อ NSO SSO กรุณาลองใหม่',
+  missing_token:   'ไม่ได้รับ token กรุณาลองใหม่',
+  access_denied:   'ไม่ได้รับอนุญาตจาก NSO SSO',
+}
 
 export default function LoginPage() {
   const router = useRouter()
+  const params = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const ssoError = params.get('sso_error')
+    if (ssoError) {
+      setError(SSO_ERROR_MESSAGES[ssoError] ?? `SSO error: ${ssoError}`)
+    }
+  }, [params])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -122,13 +139,40 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || ssoLoading}
               className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all mt-2 disabled:opacity-60"
               style={{ background: '#0F2349' }}
             >
               {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ →'}
             </button>
           </form>
+
+          {/* SSO Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400">หรือ</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          {/* NSO SSO Button */}
+          <a
+            href="/api/auth/sso"
+            onClick={() => setSsoLoading(true)}
+            className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl text-sm font-semibold transition-all border"
+            style={{
+              background:  ssoLoading ? '#f3f4f6' : '#fff',
+              border:      '1.5px solid #CBD5E1',
+              color:       '#1e40af',
+              opacity:     ssoLoading ? 0.7 : 1,
+              pointerEvents: ssoLoading ? 'none' : 'auto',
+            }}
+          >
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="8" fill="#003082" />
+              <text x="20" y="27" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="sans-serif">NSO</text>
+            </svg>
+            {ssoLoading ? 'กำลังเชื่อมต่อ NSO...' : 'เข้าสู่ระบบด้วย NSO Account (SSO)'}
+          </a>
 
           <p className="text-center text-xs text-gray-400 mt-5">
             สงวนสิทธิ์เฉพาะเจ้าหน้าที่ที่ได้รับอนุญาต · Authorized Personnel Only

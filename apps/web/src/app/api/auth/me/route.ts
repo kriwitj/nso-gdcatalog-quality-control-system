@@ -22,8 +22,10 @@ export async function GET(req: NextRequest) {
       where:  { id: payload.userId },
       select: {
         id: true, username: true, email: true, role: true, isActive: true,
-        divisionId: true,
-        division:   { select: { id: true, name: true } },
+        displayName: true,
+        ssoSub:      true,
+        divisionId:  true,
+        division:    { select: { id: true, name: true } },
       },
     })
 
