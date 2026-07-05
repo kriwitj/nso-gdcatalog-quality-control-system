@@ -117,7 +117,7 @@ export default function PortalShell({ children }: { children: ReactNode }) {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const roleLabel: Record<string, string> = { admin: 'ผู้ดูแลระบบ', editor: 'บรรณาธิการ', viewer: 'ผู้ดู' }
-  const isManager = user?.role === 'admin' || user?.role === 'editor'
+  const isEditor = user?.role === 'editor'
   const isBusy = syncing || scanning
 
   const PAGE_TITLES: [string, string][] = [
@@ -215,8 +215,8 @@ export default function PortalShell({ children }: { children: ReactNode }) {
             </Link>
           )}
 
-          {/* ซิงค์ข้อมูล + ตรวจสอบคุณภาพ */}
-          {isManager && (
+          {/* ซิงค์ข้อมูล + ตรวจสอบคุณภาพ — แสดงเฉพาะ editor */}
+          {isEditor && (
             <>
               <button
                 onClick={handleSync}

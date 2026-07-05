@@ -55,24 +55,32 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Per-source sync info */}
-      {s.syncSources.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {s.syncSources.map(src => (
-            <div key={src.id} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border"
-              style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{src.name}</span>
-              <span style={{ color: 'var(--text-muted)' }}>·</span>
-              <span>{src.datasetCount.toLocaleString()} ชุดข้อมูล · {src.resourceCount.toLocaleString()} ทรัพยากร</span>
-              <span style={{ color: 'var(--text-muted)' }}>·</span>
-              <span style={{ color: 'var(--text-muted)' }}>
-                ซิงค์ล่าสุด: {src.lastSyncAt ? new Date(src.lastSyncAt).toLocaleString('th-TH') : 'ยังไม่ได้ซิงค์'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Sync summary bar */}
+      {s.syncSources.length > 0 && (() => {
+        const lastSync = s.syncSources
+          .map(src => src.lastSyncAt)
+          .filter(Boolean)
+          .sort()
+          .at(-1)
+        const synced = s.syncSources.filter(src => src.lastSyncAt).length
+        return (
+          <div className="flex items-center gap-3 mb-6 px-4 py-2.5 rounded-xl border text-xs"
+            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+            <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+              {s.syncSources.length} แหล่งข้อมูล
+            </span>
+            <span style={{ color: 'var(--text-muted)' }}>·</span>
+            <span>ซิงค์แล้ว {synced}/{s.syncSources.length} แหล่ง</span>
+            {lastSync && (
+              <>
+                <span style={{ color: 'var(--text-muted)' }}>·</span>
+                <span>ซิงค์ล่าสุด: {new Date(lastSync).toLocaleString('th-TH')}</span>
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Top stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
