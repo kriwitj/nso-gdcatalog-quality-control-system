@@ -16,6 +16,8 @@ export interface SsoUserInfo {
   region:               string | null
   branch_code:          string | null
   branch:               string | null
+  division_code:        string | null
+  division:             string | null
   department_code:      string | null
   department:           string | null
   province_code:        string | null

@@ -112,6 +112,8 @@ const FIXED_DEPARTMENT = 'สำนักงานสถิติแห่งช
 async function resolveOrg(info: {
   branch_code:     string | null
   branch:          string | null
+  division_code:   string | null
+  division:        string | null
   department_code: string | null
   department:      string | null
 }) {
@@ -136,14 +138,14 @@ async function resolveOrg(info: {
     departmentId = dept?.id ?? null
   }
 
-  // 3. Division — ค้นหาด้วย code หรือชื่อ ถ้าไม่มีให้สร้างใหม่
-  if (departmentId && (info.branch_code || info.branch)) {
-    const divName = info.branch ?? info.branch_code ?? ''
+  // 3. Division (ศูนย์/กอง) — มาจาก SSO field: division / division_code
+  if (departmentId && (info.division_code || info.division)) {
+    const divName = info.division ?? info.division_code ?? ''
     const existing = await prisma.division.findFirst({
       where: {
         departmentId,
         OR: [
-          ...(info.branch_code ? [{ code: info.branch_code }] : []),
+          ...(info.division_code ? [{ code: info.division_code }] : []),
           { name: divName },
         ],
       },
@@ -153,11 +155,11 @@ async function resolveOrg(info: {
       divisionId = existing.id
     } else {
       const created = await prisma.division.create({
-        data: { departmentId, name: divName, code: info.branch_code ?? null },
+        data: { departmentId, name: divName, code: info.division_code ?? null },
         select: { id: true },
       })
       divisionId = created.id
-      console.log(`[sso] created division "${divName}" (code=${info.branch_code})`)
+      console.log(`[sso] created division "${divName}" (code=${info.division_code})`)
     }
   }
 
