@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, useEffect } from 'react'
+import { useState, FormEvent, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -12,21 +12,23 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
   access_denied:   'ไม่ได้รับอนุญาตจาก NSO SSO',
 }
 
-export default function LoginPage() {
-  const router = useRouter()
+// แยกออกมาเพื่อห่อด้วย Suspense — useSearchParams() ต้องการ Suspense boundary
+function SsoErrorReader({ onError }: { onError: (msg: string) => void }) {
   const params = useSearchParams()
+  useEffect(() => {
+    const ssoError = params.get('sso_error')
+    if (ssoError) onError(SSO_ERROR_MESSAGES[ssoError] ?? `SSO error: ${ssoError}`)
+  }, [params, onError])
+  return null
+}
+
+function LoginForm() {
+  const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    const ssoError = params.get('sso_error')
-    if (ssoError) {
-      setError(SSO_ERROR_MESSAGES[ssoError] ?? `SSO error: ${ssoError}`)
-    }
-  }, [params])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -61,6 +63,10 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
       style={{ background: 'linear-gradient(160deg,#0F2349 0%,#1a3a6b 50%,#0a1f42 100%)' }}
     >
+      <Suspense>
+        <SsoErrorReader onError={setError} />
+      </Suspense>
+
       {/* Grid bg */}
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: 'linear-gradient(rgba(59,130,246,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.06) 1px,transparent 1px)',
@@ -160,10 +166,10 @@ export default function LoginPage() {
             onClick={() => setSsoLoading(true)}
             className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl text-sm font-semibold transition-all border"
             style={{
-              background:  ssoLoading ? '#f3f4f6' : '#fff',
-              border:      '1.5px solid #CBD5E1',
-              color:       '#1e40af',
-              opacity:     ssoLoading ? 0.7 : 1,
+              background:    ssoLoading ? '#f3f4f6' : '#fff',
+              border:        '1.5px solid #CBD5E1',
+              color:         '#1e40af',
+              opacity:       ssoLoading ? 0.7 : 1,
               pointerEvents: ssoLoading ? 'none' : 'auto',
             }}
           >
@@ -185,4 +191,8 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+export default function LoginPage() {
+  return <LoginForm />
 }
