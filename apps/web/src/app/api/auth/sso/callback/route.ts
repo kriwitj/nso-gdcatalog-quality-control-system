@@ -136,28 +136,54 @@ async function resolveOrg(info: {
     departmentId = dept?.id ?? null
   }
 
-  // 3. Division — ค้นหาด้วย code ก่อน ถ้าไม่เจอใช้ชื่อ
-  if (departmentId) {
-    const div = await prisma.division.findFirst({
+  // 3. Division — ค้นหาด้วย code หรือชื่อ ถ้าไม่มีให้สร้างใหม่
+  if (departmentId && (info.branch_code || info.branch)) {
+    const divName = info.branch ?? info.branch_code ?? ''
+    const existing = await prisma.division.findFirst({
       where: {
         departmentId,
-        ...(info.branch_code ? { code: info.branch_code } : { name: info.branch ?? '' }),
+        OR: [
+          ...(info.branch_code ? [{ code: info.branch_code }] : []),
+          { name: divName },
+        ],
       },
       select: { id: true },
     })
-    divisionId = div?.id ?? null
+    if (existing) {
+      divisionId = existing.id
+    } else {
+      const created = await prisma.division.create({
+        data: { departmentId, name: divName, code: info.branch_code ?? null },
+        select: { id: true },
+      })
+      divisionId = created.id
+      console.log(`[sso] created division "${divName}" (code=${info.branch_code})`)
+    }
   }
 
-  // 4. Group — ค้นหาด้วย code ก่อน ถ้าไม่เจอใช้ชื่อ
-  if (divisionId) {
-    const grp = await prisma.group.findFirst({
+  // 4. Group — ค้นหาด้วย code หรือชื่อ ถ้าไม่มีให้สร้างใหม่
+  if (divisionId && (info.department_code || info.department)) {
+    const grpName = info.department ?? info.department_code ?? ''
+    const existing = await prisma.group.findFirst({
       where: {
         divisionId,
-        ...(info.department_code ? { code: info.department_code } : { name: info.department ?? '' }),
+        OR: [
+          ...(info.department_code ? [{ code: info.department_code }] : []),
+          { name: grpName },
+        ],
       },
       select: { id: true },
     })
-    groupId = grp?.id ?? null
+    if (existing) {
+      groupId = existing.id
+    } else {
+      const created = await prisma.group.create({
+        data: { divisionId, name: grpName, code: info.department_code ?? null },
+        select: { id: true },
+      })
+      groupId = created.id
+      console.log(`[sso] created group "${grpName}" (code=${info.department_code})`)
+    }
   }
 
   return { ministryId, departmentId, divisionId, groupId }
